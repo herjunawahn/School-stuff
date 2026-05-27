@@ -1,0 +1,3788 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+  FILE: bank_dan_iknb.html
+  DESCRIPTION: Interactive educational web media for middle/high
+               school students covering Indonesian banking and
+               non-bank financial institutions (IKNB).
+  LANGUAGE: Indonesian (id)
+  ============================================================
+
+  STRUCTURE OVERVIEW
+  ──────────────────
+  1. <head>         — Meta, Google Fonts imports, all CSS
+  2. <body>
+     ├── .overlay   — Dark backdrop for mobile sidebar
+     ├── .hamburger — Mobile menu toggle button
+     ├── <nav>.sidebar — Fixed left navigation with progress bar
+     └── .main      — Main content area
+         ├── #section-home        — Landing / overview
+         ├── #section-jenis-bank  — Types of banks
+         ├── #section-bank-sentral — Bank Indonesia (central bank)
+         ├── #section-bank-umum   — Commercial banks
+         ├── #section-bpr         — Rural credit banks
+         ├── #section-bank-syariah — Islamic vs conventional banks
+         ├── #section-iknb        — Non-bank financial institutions
+         ├── #section-ojk         — Financial Services Authority
+         ├── #section-lps         — Deposit Insurance Corporation
+         └── #section-quiz        — Interactive 10-question quiz
+  3. <script>        — Navigation, accordion, quiz logic
+
+  HOW TO ADD A NEW SECTION
+  ─────────────────────────
+  1. Add a nav-item in the sidebar pointing to showSection('your-id')
+  2. Add the section ID to the `sections` array in JS
+  3. Create <div id="section-your-id" class="section"> in .main
+  4. Use the existing card/accordion/list component classes
+
+  HOW TO ADD A QUIZ QUESTION
+  ───────────────────────────
+  Push a new object into the `quizData` array in the <script>:
+    { q: "Question text",
+      opts: ["Option A", "Option B", "Option C", "Option D"],
+      ans: 0,   // 0-based index of the correct option
+      exp: "Explanation shown after answering" }
+  Then update the hero-stat "Soal Kuis" count on the home section.
+
+  FONTS
+  ──────
+  - Body/UI:   Plus Jakarta Sans (weights 300–800)
+  - Headings:  Fraunces (serif, weights 700 & 900) — gives editorial feel
+  To swap fonts, replace the Google Fonts <link> href and update
+  font-family references in: root or individual selectors.
+  ============================================================
+-->
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bank & Industri Keuangan Non Bank</title>
+
+<!-- Google Fonts
+     Plus Jakarta Sans  — clean modern sans-serif for all body/UI text
+     Fraunces           — editorial serif used for hero headings and big numbers
+     To use different fonts, replace this URL and update the font-family in CSS. -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Fraunces:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet">
+
+<style>
+  /* ============================================================
+     CSS CUSTOM PROPERTIES (Design Tokens)
+     All colours, shadows, and shared values live here.
+     Change a value once and it updates everywhere on the page.
+     ============================================================ */
+  :root {
+    /* ── Brand colours ── */
+    --navy:   #0D1B4B; /* darkest blue — sidebar bg, headings, feature cards  */
+    --blue:   #1B4FD8; /* primary interactive blue — buttons, active nav, links */
+    --sky:    #3B82F6; /* lighter blue — hover states, active indicator dots    */
+    --gold:   #F5A623; /* warm gold — CTA buttons, accent numbers, highlights   */
+    --orange: #F97316; /* vivid orange — gradient pair with gold, accent-orange  */
+    --green:  #10B981; /* success / correct-answer green                        */
+    --red:    #EF4444; /* error / wrong-answer / prohibited-action red          */
+    --purple: #8B5CF6; /* used for OJK & fintech cards                          */
+    --teal:   #14B8A6; /* used for bank-syariah section accent                  */
+
+    /* ── Surface colours ── */
+    --bg:     #F0F4FF; /* page background — very light blue-grey                */
+    --white:  #FFFFFF; /* pure white (alias kept for clarity)                   */
+    --card:   #FFFFFF; /* card/panel background                                 */
+
+    /* ── Text colours ── */
+    --text:   #1E293B; /* primary body text — near-black                        */
+    --muted:  #64748B; /* secondary/subtitle text — slate grey                  */
+
+    /* ── Borders & shadows ── */
+    --border:    #E2E8F0;                        /* card border, dividers          */
+    --shadow:    0 4px 24px rgba(13,27,75,0.10); /* default card shadow            */
+    --shadow-lg: 0 12px 40px rgba(13,27,75,0.16);/* hover/elevated shadow          */
+  }
+
+  /* Global reset — removes browser default spacing, enforces border-box sizing */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* Base body — sets the default font, page background, and prevents horizontal scroll */
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden; /* prevents horizontal scrollbar from floating elements */
+  }
+
+  /* ============================================================
+     SIDEBAR NAVIGATION
+     Fixed left panel; 260 px wide on desktop.
+     On mobile (≤900 px) it slides off-screen and is toggled by
+     the .hamburger button — see the @media block at the bottom.
+     To change the sidebar width, update width here AND
+     .main { margin-left } to match.
+     ============================================================ */
+  .sidebar {
+    position: fixed; left: 0; top: 0; bottom: 0;
+    width: 260px;
+    background: var(--navy);
+    z-index: 100;
+    display: flex; flex-direction: column;
+    padding: 0;
+    transition: transform .3s ease;
+    overflow-y: auto;
+  }
+
+  .sidebar-logo {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .sidebar-logo .logo-badge {
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .sidebar-logo .icon {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--gold), var(--orange));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .sidebar-logo .title {
+    font-family: 'Fraunces', serif;
+    color: white; font-size: 13px; font-weight: 700;
+    line-height: 1.3;
+  }
+  .sidebar-logo .subtitle {
+    color: rgba(255,255,255,.45); font-size: 10px; font-weight: 500;
+    letter-spacing: .06em; text-transform: uppercase; margin-top: 2px;
+  }
+
+  .sidebar-section-title {
+    padding: 18px 24px 6px;
+    color: rgba(255,255,255,.35);
+    font-size: 9px; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+  }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 24px;
+    color: rgba(255,255,255,.6);
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all .2s;
+    text-decoration: none;
+  }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: white; }
+  .nav-item.active {
+    background: rgba(59,130,246,.18);
+    border-left-color: var(--sky);
+    color: white;
+  }
+  .nav-item .nav-icon {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    background: rgba(255,255,255,.08);
+    flex-shrink: 0;
+  }
+  .nav-item.active .nav-icon { background: var(--sky); }
+  .nav-item .nav-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(255,255,255,.2); flex-shrink: 0;
+    margin-left: auto;
+  }
+  .nav-item.active .nav-dot { background: var(--sky); }
+
+  /* ── Sidebar progress bar widget ──
+     Tracks which sections the user has visited.
+     The JS function updateProgress() drives .sp-bar-fill width
+     and .sp-percent text. Both are updated on every showSection() call. */
+  .sidebar-progress {
+    margin: 20px 24px;
+    background: rgba(255,255,255,.08);
+    border-radius: 10px; padding: 14px;
+  }
+  .sidebar-progress .sp-label {
+    color: rgba(255,255,255,.5); font-size: 10px; font-weight: 600;
+    letter-spacing: .06em; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .sidebar-progress .sp-bar-bg {
+    height: 5px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden;
+  }
+  .sidebar-progress .sp-bar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--sky), var(--gold));
+    border-radius: 3px; transition: width .5s ease;
+    width: 0%;
+  }
+  .sidebar-progress .sp-percent {
+    color: white; font-size: 11px; font-weight: 700; margin-top: 6px;
+    text-align: right;
+  }
+
+  /* ── Hamburger menu button ──
+     Hidden on desktop (display:none). Shown on mobile via the
+     @media (max-width: 900px) block. Clicking it calls toggleSidebar(). */
+  .hamburger {
+    display: none;
+    position: fixed; top: 16px; left: 16px; z-index: 200;
+    width: 40px; height: 40px; background: var(--navy);
+    border-radius: 10px; border: none; cursor: pointer;
+    flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  }
+  .hamburger span { display: block; width: 20px; height: 2px; background: white; border-radius: 2px; }
+
+  /* ── Main content area ──
+     Offset from the left by exactly the sidebar width (260px).
+     On mobile this margin is removed so content fills the full viewport. */
+  .main { margin-left: 260px; min-height: 100vh; }
+
+  /* ============================================================
+     HERO SECTION  (#section-home)
+     Full-width banner at the top of the landing/home section.
+     ::before adds a soft radial glow on the right side.
+     The two-column grid collapses to one column on tablets.
+     ============================================================ */
+  .hero {
+    background: linear-gradient(135deg, var(--navy) 0%, #1a3a8f 60%, #0f2d6e 100%);
+    padding: 80px 60px 70px;
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 80% 50%, rgba(59,130,246,.25) 0%, transparent 70%);
+  }
+  .hero-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    align-items: center; gap: 40px; position: relative; z-index: 1;
+  }
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(245,166,35,.15); border: 1px solid rgba(245,166,35,.3);
+    border-radius: 100px; padding: 5px 14px;
+    color: var(--gold); font-size: 11px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase; margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-family: 'Fraunces', serif;
+    color: white; font-size: 46px; font-weight: 900;
+    line-height: 1.1; margin-bottom: 16px;
+  }
+  .hero h1 span { color: var(--gold); }
+  .hero p {
+    color: rgba(255,255,255,.65); font-size: 15px; line-height: 1.7;
+    max-width: 440px; margin-bottom: 32px;
+  }
+  .hero-cta {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: linear-gradient(135deg, var(--gold), var(--orange));
+    color: white; font-weight: 700; font-size: 14px;
+    padding: 14px 26px; border-radius: 12px; cursor: pointer;
+    border: none; transition: transform .2s, box-shadow .2s;
+    box-shadow: 0 8px 24px rgba(245,166,35,.35);
+  }
+  .hero-cta:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(245,166,35,.45); }
+
+  .hero-stats {
+    display: flex; gap: 20px; margin-top: 28px;
+  }
+  .hero-stat {
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 14px; padding: 16px 20px; text-align: center;
+  }
+  .hero-stat .hs-num {
+    font-family: 'Fraunces', serif;
+    color: var(--gold); font-size: 28px; font-weight: 900; line-height: 1;
+  }
+  .hero-stat .hs-label { color: rgba(255,255,255,.5); font-size: 11px; font-weight: 600; margin-top: 4px; }
+
+  .hero-visual {
+    display: flex; justify-content: center;
+    position: relative; z-index: 1;
+  }
+  .hero-card-stack {
+    position: relative; width: 280px; height: 280px;
+  }
+  .hcs-card {
+    position: absolute; border-radius: 20px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 36px; color: white; font-weight: 800;
+    box-shadow: var(--shadow-lg);
+  }
+  .hcs-card.c1 {
+    width: 180px; height: 180px; top: 20px; left: 20px;
+    background: linear-gradient(135deg, #1B4FD8, #3B82F6);
+    animation: float1 4s ease-in-out infinite;
+  }
+  .hcs-card.c2 {
+    width: 140px; height: 140px; top: 80px; left: 120px;
+    background: linear-gradient(135deg, var(--gold), var(--orange));
+    animation: float2 3.5s ease-in-out infinite;
+  }
+  .hcs-card.c3 {
+    width: 110px; height: 110px; top: 150px; left: 30px;
+    background: linear-gradient(135deg, var(--teal), var(--green));
+    animation: float1 5s ease-in-out infinite reverse;
+  }
+  .hcs-card .card-label { font-size: 11px; font-weight: 600; opacity: .8; margin-top: 6px; }
+
+  /* float1: gentle upward bob (12 px travel). float2: inverted bob (starts mid-air).
+     The `reverse` keyword on c3 makes it move opposite to c1 for visual variety. */
+  @keyframes float1 { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+  @keyframes float2 { 0%,100%{transform:translateY(-6px)} 50%{transform:translateY(6px)} }
+
+  /* ============================================================
+     SECTION VISIBILITY SYSTEM
+     All content sections start as display:none.
+     JS adds .active to whichever section should be visible.
+     The fadeIn animation plays each time a section is shown.
+     To adjust the entrance animation speed, change '.35s' below.
+     ============================================================ */
+  .section { display: none; padding: 48px 60px; }
+  .section.active { display: block; animation: fadeIn .35s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+  .section-header { margin-bottom: 36px; }
+  .section-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(27,79,216,.1); border: 1px solid rgba(27,79,216,.2);
+    border-radius: 100px; padding: 4px 14px;
+    color: var(--blue); font-size: 11px; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase; margin-bottom: 12px;
+  }
+  .section-title {
+    font-family: 'Fraunces', serif;
+    font-size: 34px; font-weight: 900; color: var(--navy); line-height: 1.15;
+  }
+  .section-title span { color: var(--blue); }
+  .section-desc {
+    color: var(--muted); font-size: 15px; line-height: 1.7;
+    max-width: 580px; margin-top: 10px;
+  }
+
+  /* ============================================================
+     CARD GRID SYSTEM
+     Use .cards-grid with a .cols-N modifier to set column count.
+     Responsive overrides in the @media block reduce columns on
+     smaller screens automatically.
+     Example: <div class="cards-grid cols-3"> ... </div>
+     ============================================================ */
+  .cards-grid { display: grid; gap: 20px; }
+  .cards-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .cards-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .cards-grid.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+  .card {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 26px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    transition: transform .25s, box-shadow .25s;
+  }
+  .card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+
+  .card-icon {
+    width: 50px; height: 50px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; margin-bottom: 16px;
+  }
+  .card h3 { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+  .card p { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+  /* ── Card accent top-border variants ──
+     Apply one of these classes alongside .card to add a coloured
+     3px top border that signals the card's topic/category.
+     Example: <div class="card accent-blue"> ... </div> */
+  .card.accent-blue { border-top: 3px solid var(--blue); }
+  .card.accent-gold { border-top: 3px solid var(--gold); }
+  .card.accent-green { border-top: 3px solid var(--green); }
+  .card.accent-orange { border-top: 3px solid var(--orange); }
+  .card.accent-teal { border-top: 3px solid var(--teal); }
+  .card.accent-purple { border-top: 3px solid var(--purple); }
+  .card.accent-red { border-top: 3px solid var(--red); }
+
+  /* ── Coloured icon background helpers ──
+     Apply a .ci-* class to .card-icon to tint its background.
+     Each colour matches a brand token; opacity keeps it subtle.
+     Example: <div class="card-icon ci-blue">🏦</div> */
+  .ci-blue { background: rgba(27,79,216,.1); }
+  .ci-gold { background: rgba(245,166,35,.12); }
+  .ci-green { background: rgba(16,185,129,.1); }
+  .ci-orange { background: rgba(249,115,22,.1); }
+  .ci-teal { background: rgba(20,184,166,.1); }
+  .ci-purple { background: rgba(139,92,246,.1); }
+  .ci-red { background: rgba(239,68,68,.1); }
+
+  /* ============================================================
+     FEATURE CARD  (.feature-card)
+     Dark navy full-width banner used as a prominent introduction
+     block inside a section (e.g., BI tujuan, LPS background).
+     The ::after pseudo-element pulls `data-bg-text` attribute
+     value and renders it as giant watermark text in the background.
+     Usage: <div class="feature-card" data-bg-text="WATERMARK"> ... </div>
+     ============================================================ */
+  .feature-card {
+    background: linear-gradient(135deg, var(--navy), #1a3a8f);
+    border-radius: 22px; padding: 36px;
+    color: white; position: relative; overflow: hidden;
+    margin-bottom: 28px;
+  }
+  .feature-card::after {
+    content: attr(data-bg-text);
+    position: absolute; right: -10px; bottom: -20px;
+    font-family: 'Fraunces', serif; font-size: 100px; font-weight: 900;
+    color: rgba(255,255,255,.04); white-space: nowrap; pointer-events: none;
+  }
+  .feature-card h2 { font-family: 'Fraunces', serif; font-size: 26px; font-weight: 900; margin-bottom: 12px; }
+  .feature-card p { font-size: 14px; color: rgba(255,255,255,.7); line-height: 1.7; max-width: 520px; }
+  .feature-card .badge {
+    display: inline-block; background: rgba(245,166,35,.2); border: 1px solid rgba(245,166,35,.4);
+    color: var(--gold); font-size: 11px; font-weight: 700;
+    padding: 4px 12px; border-radius: 100px; margin-bottom: 14px;
+  }
+
+  /* ============================================================
+     COMPARISON TABLE  (.comparison-table)
+     Used in the Bank Syariah vs Konvensional section.
+     Column header colours: first col = navy, .syariah = green, .konvensional = blue.
+     Row zebra striping is handled per-cell with .syariah / .konvensional classes.
+     Wrap in <div style="overflow-x:auto"> on narrow viewports.
+     ============================================================ */
+  .comparison-table {
+    width: 100%; border-collapse: collapse;
+    background: var(--card); border-radius: 16px; overflow: hidden;
+    box-shadow: var(--shadow); border: 1px solid var(--border);
+  }
+  .comparison-table th {
+    padding: 16px 20px; font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  .comparison-table th:first-child { background: var(--navy); color: white; text-align: left; }
+  .comparison-table th.syariah { background: var(--green); color: white; }
+  .comparison-table th.konvensional { background: var(--blue); color: white; }
+  .comparison-table td {
+    padding: 14px 20px; font-size: 13px; color: var(--text); line-height: 1.5;
+    border-bottom: 1px solid var(--border);
+  }
+  .comparison-table td:first-child { font-weight: 600; color: var(--navy); background: #F8FAFF; }
+  .comparison-table td.syariah { background: rgba(16,185,129,.05); }
+  .comparison-table td.konvensional { background: rgba(27,79,216,.04); }
+  .comparison-table tr:last-child td { border-bottom: none; }
+  .check { color: var(--green); font-weight: 700; }
+  .cross { color: var(--red); font-weight: 700; }
+
+  /* ============================================================
+     INFO LIST  (.info-list)
+     A styled <ul> for presenting bullet points as card-like rows.
+     Each <li> should contain a .bullet div and a text node.
+     Apply a .ci-* class to .bullet for the coloured icon background.
+     Example:
+       <ul class="info-list">
+         <li>
+           <div class="bullet ci-green" style="border-radius:8px;">✔</div>
+           <div>List item text here</div>
+         </li>
+       </ul>
+     ============================================================ */
+  .info-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .info-list li {
+    display: flex; align-items: flex-start; gap: 12px;
+    background: var(--card); border-radius: 12px; padding: 14px 18px;
+    border: 1px solid var(--border); font-size: 13.5px; line-height: 1.6;
+    transition: border-color .2s, background .2s;
+  }
+  .info-list li:hover { border-color: var(--sky); background: rgba(59,130,246,.03); }
+  .info-list li .bullet {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0; margin-top: 1px;
+  }
+
+  /* ── Bank chips (.bank-chips / .bank-chip) ──
+     Pill-shaped tags used to list bank names inside a card.
+     Hover inverts colours to navy bg / white text.
+     Wrap chips in <div class="bank-chips"> for flex wrapping. */
+  .bank-chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .bank-chip {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 100px; padding: 6px 16px;
+    font-size: 13px; font-weight: 600; color: var(--text);
+    transition: background .2s, border-color .2s, color .2s;
+  }
+  .bank-chip:hover { background: var(--navy); color: white; border-color: var(--navy); }
+
+  /* ============================================================
+     ACCORDION  (.accordion / .acc-item)
+     Pure CSS height animation (max-height trick) triggered by the
+     .open class. JS function toggleAcc() adds/removes .open.
+     Only one item can be open at a time — toggleAcc() closes all
+     others before opening the clicked one.
+
+     IMPORTANT: If accordion body content is very tall (e.g. nested
+     cards with many rows), increase .acc-item.open .acc-body
+     max-height beyond the current 600px so content isn't clipped.
+
+     Structure:
+       <div class="acc-item [open]">
+         <div class="acc-header" onclick="toggleAcc(this)">
+           <div class="acc-left"> icon + label </div>
+           [optional tag badge]
+           <div class="acc-arrow">▼</div>
+         </div>
+         <div class="acc-body">
+           <div class="acc-body-inner"> content here </div>
+         </div>
+       </div>
+     ============================================================ */
+  .accordion { display: flex; flex-direction: column; gap: 10px; }
+  .acc-item {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden;
+    transition: box-shadow .2s;
+  }
+  .acc-item:hover { box-shadow: var(--shadow); }
+  .acc-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 22px; cursor: pointer;
+    font-size: 14px; font-weight: 700; color: var(--navy);
+    user-select: none;
+  }
+  .acc-header .acc-left { display: flex; align-items: center; gap: 14px; }
+  .acc-header .acc-icon-wrap {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+  .acc-arrow {
+    width: 28px; height: 28px; background: var(--bg);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; transition: transform .3s; color: var(--muted);
+  }
+  .acc-item.open .acc-arrow { transform: rotate(180deg); }
+  .acc-body {
+    /* FIX (mobile): max-height is no longer set in CSS.
+       toggleAcc() in JS sets it to body.scrollHeight so any amount
+       of content — including nested card grids on a narrow screen —
+       is always fully visible. The transition still animates smoothly. */
+    max-height: 0; overflow: hidden; transition: max-height .45s ease;
+  }
+  /* .acc-item.open .acc-body max-height intentionally omitted —
+     the open height is injected as an inline style by toggleAcc(). */
+  .acc-body-inner {
+    padding: 4px 22px 22px;
+    font-size: 13.5px; color: var(--muted); line-height: 1.75;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+
+  /* ============================================================
+     QUIZ COMPONENT
+     All quiz styles are prefixed with .quiz-*.
+     State classes applied by JS:
+       .selected  — the option the user clicked
+       .correct   — the right answer (always revealed after submit)
+       .wrong     — the user's incorrect pick
+
+     The quiz card (.quiz-card) and result screen (#quizResult) are
+     toggled via display:none/block in showResult() and restartQuiz().
+     ============================================================ */
+  .quiz-card {
+    background: var(--card); border-radius: 20px;
+    padding: 32px; box-shadow: var(--shadow);
+    border: 1px solid var(--border); max-width: 680px; margin: 0 auto;
+  }
+  .quiz-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .quiz-qnum {
+    font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .quiz-score-badge {
+    background: var(--navy); color: var(--gold);
+    font-size: 12px; font-weight: 700; padding: 4px 14px;
+    border-radius: 100px;
+  }
+  .quiz-question {
+    font-size: 17px; font-weight: 700; color: var(--navy);
+    line-height: 1.5; margin-bottom: 22px;
+  }
+  .quiz-options { display: flex; flex-direction: column; gap: 10px; }
+  .quiz-option {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--bg); border: 2px solid var(--border);
+    border-radius: 12px; padding: 14px 18px;
+    cursor: pointer; transition: all .2s;
+    font-size: 14px; color: var(--text); font-weight: 500;
+  }
+  .quiz-option:hover { border-color: var(--sky); background: rgba(59,130,246,.05); }
+  .quiz-option.selected { border-color: var(--blue); background: rgba(27,79,216,.06); color: var(--blue); }
+  .quiz-option.correct { border-color: var(--green); background: rgba(16,185,129,.08); color: var(--green); }
+  .quiz-option.wrong { border-color: var(--red); background: rgba(239,68,68,.06); color: var(--red); }
+  .quiz-option .opt-letter {
+    width: 28px; height: 28px; border-radius: 8px;
+    background: white; border: 1.5px solid currentColor;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; flex-shrink: 0;
+  }
+  /* ── Button variants ──
+     Base class .btn provides shared padding, border-radius, font, and transition.
+     Add one modifier to apply a colour scheme:
+       .btn-primary   — solid blue (primary CTA)
+       .btn-secondary — ghost/outline on light bg
+       .btn-gold      — gradient gold/orange (celebratory or high-emphasis)
+     Example: <button class="btn btn-primary">Click me</button> */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 22px; border-radius: 12px; border: none;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    transition: all .2s; font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  .btn-primary { background: var(--blue); color: white; box-shadow: 0 4px 14px rgba(27,79,216,.3); }
+  .btn-primary:hover { background: var(--navy); box-shadow: 0 6px 20px rgba(13,27,75,.3); }
+  .btn-secondary { background: var(--bg); color: var(--navy); border: 1.5px solid var(--border); }
+  .btn-secondary:hover { background: var(--border); }
+  .btn-gold { background: linear-gradient(135deg,var(--gold),var(--orange)); color: white; box-shadow: 0 4px 14px rgba(245,166,35,.3); }
+  .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(245,166,35,.4); }
+
+  .quiz-progress {
+    height: 5px; background: var(--border); border-radius: 3px;
+    overflow: hidden; margin-bottom: 24px;
+  }
+  .quiz-progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--blue), var(--sky));
+    border-radius: 3px; transition: width .4s ease;
+  }
+  .quiz-feedback {
+    padding: 12px 16px; border-radius: 10px;
+    font-size: 13px; font-weight: 600; margin-top: 12px; display: none;
+  }
+  .quiz-feedback.correct-fb { background: rgba(16,185,129,.1); color: #059669; border: 1px solid rgba(16,185,129,.3); }
+  .quiz-feedback.wrong-fb { background: rgba(239,68,68,.08); color: #DC2626; border: 1px solid rgba(239,68,68,.25); }
+  .quiz-result {
+    text-align: center; padding: 24px 0;
+  }
+  .quiz-result .result-emoji { font-size: 56px; line-height: 1; margin-bottom: 16px; }
+  .quiz-result .result-score {
+    font-family: 'Fraunces', serif;
+    font-size: 56px; font-weight: 900; color: var(--navy); line-height: 1;
+  }
+  .quiz-result .result-label { color: var(--muted); font-size: 14px; margin-top: 4px; }
+  .quiz-result .result-msg { font-size: 16px; font-weight: 600; color: var(--text); margin: 16px 0 24px; }
+
+  /* ============================================================
+     TIMELINE  (.timeline / .tl-item)
+     Vertical timeline used in the Leasing section to show the
+     three phases of a lease contract. The vertical line is drawn
+     with ::before on .timeline using a gradient.
+     Each .tl-item has an absolutely-positioned .tl-dot circle.
+     To change dot colour per step, set background on .tl-dot inline.
+     ============================================================ */
+  .timeline { position: relative; padding-left: 36px; }
+  .timeline::before {
+    content: ''; position: absolute; left: 12px; top: 8px; bottom: 8px;
+    width: 2px; background: linear-gradient(to bottom, var(--blue), var(--gold));
+  }
+  .tl-item { position: relative; margin-bottom: 28px; }
+  .tl-dot {
+    position: absolute; left: -29px; top: 6px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--blue); border: 3px solid var(--bg);
+    box-shadow: 0 0 0 2px var(--blue);
+  }
+  .tl-item .tl-label {
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--blue); margin-bottom: 5px;
+  }
+  .tl-item .tl-title { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+  .tl-item .tl-desc { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+  /* Simple 1px horizontal rule — use <div class="divider"></div> between content blocks */
+  .divider {
+    height: 1px; background: var(--border); margin: 32px 0;
+  }
+
+  /* Two-column layout helper — collapses to single column at ≤900 px.
+     Use for side-by-side content blocks, e.g. allowed vs. prohibited lists. */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+
+  /* ── Tag / badge pills ──
+     Small inline label used inside accordion headers or cards.
+     Apply .tag plus one colour modifier (.tag-blue, .tag-green, etc.).
+     Example: <span class="tag tag-blue">UU No. 13/1999</span> */
+  .tag {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 100px; letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .tag-blue { background: rgba(27,79,216,.1); color: var(--blue); }
+  .tag-green { background: rgba(16,185,129,.1); color: var(--green); }
+  .tag-orange { background: rgba(249,115,22,.1); color: var(--orange); }
+  .tag-red { background: rgba(239,68,68,.1); color: var(--red); }
+  .tag-gold { background: rgba(245,166,35,.12); color: #B45309; }
+  .tag-purple { background: rgba(139,92,246,.1); color: var(--purple); }
+
+  /* ── Fact / callout boxes ──
+     Coloured alert-style boxes for supplementary notes.
+     Three semantic variants:
+       .fact-box.info    — blue  — neutral informational note
+       .fact-box.warn    — amber — caution / important distinction
+       .fact-box.success — green — positive fact or confirmation
+     Structure:
+       <div class="fact-box info">
+         <div class="fb-icon">💡</div>
+         <div><strong>Label:</strong> Body text here.</div>
+       </div> */
+  .fact-box {
+    border-radius: 14px; padding: 18px 20px;
+    display: flex; align-items: flex-start; gap: 14px;
+    font-size: 13px; line-height: 1.65;
+  }
+  .fact-box.info { background: rgba(59,130,246,.07); border: 1px solid rgba(59,130,246,.2); color: #1D4ED8; }
+  .fact-box.warn { background: rgba(245,166,35,.08); border: 1px solid rgba(245,166,35,.25); color: #92400E; }
+  .fact-box.success { background: rgba(16,185,129,.07); border: 1px solid rgba(16,185,129,.2); color: #065F46; }
+  .fact-box .fb-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .fact-box strong { font-weight: 700; }
+
+  /* ── Fintech card grid ──
+     2-column grid of themed cards used in the IKNB / Fintech accordion.
+     Each .fintech-card has a .fc-tag badge, title, description, and
+     .fc-examples chips for real-world app names.
+     Collapses to single column at ≤900 px. */
+  .fintech-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .fintech-card {
+    background: var(--card); border-radius: 14px;
+    padding: 20px; border: 1px solid var(--border);
+    transition: all .2s; cursor: default;
+  }
+  .fintech-card:hover { border-color: var(--sky); box-shadow: var(--shadow); transform: translateY(-3px); }
+  .fintech-card .fc-tag { margin-bottom: 10px; }
+  .fintech-card .fc-title { font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 6px; }
+  .fintech-card .fc-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .fintech-card .fc-examples {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px;
+  }
+  .fintech-card .fc-examples span {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; font-size: 11px; font-weight: 600; padding: 3px 9px; color: var(--text);
+  }
+
+  /* ── OJK Pillar cards ──
+     3-column dark navy grid used at the top of the OJK section to
+     highlight the three core functions: Pengaturan, Pengawasan, Perlindungan.
+     Collapses to 1 column on mobile. */
+  .ojk-pillars { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 20px; }
+  .ojk-pillar {
+    background: linear-gradient(135deg, var(--navy), #1a3a8f);
+    border-radius: 18px; padding: 24px 20px; text-align: center; color: white;
+    transition: transform .25s; cursor: default;
+  }
+  .ojk-pillar:hover { transform: translateY(-5px); }
+  .ojk-pillar .op-icon { font-size: 32px; margin-bottom: 12px; }
+  .ojk-pillar .op-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+  .ojk-pillar .op-desc { font-size: 12px; color: rgba(255,255,255,.65); line-height: 1.6; }
+
+  /* ============================================================
+     RESPONSIVE BREAKPOINTS
+     ≤ 900 px  — Tablet / large mobile
+       · Sidebar hides off-screen; hamburger button appears
+       · Hero collapses to 1 column; floating card visual hidden
+       · Section padding reduced; multi-column grids become 2-col
+     ≤ 600 px  — Small mobile
+       · All grids collapse to a single column
+       · Hero stats stack vertically
+       · Comparison table font/padding shrunk for readability
+     ============================================================ */
+  @media (max-width: 900px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; }
+    .hamburger { display: flex; }
+    .hero { padding: 70px 24px 50px; }
+    .hero-grid { grid-template-columns: 1fr; }
+    .hero-visual { display: none; }
+    .section { padding: 40px 24px; }
+    .cards-grid.cols-3 { grid-template-columns: 1fr 1fr; }
+    .cards-grid.cols-4 { grid-template-columns: 1fr 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .ojk-pillars { grid-template-columns: 1fr; }
+    .fintech-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 32px; }
+  }
+  @media (max-width: 600px) {
+    .cards-grid.cols-2 { grid-template-columns: 1fr; }
+    .cards-grid.cols-3 { grid-template-columns: 1fr; }
+    .cards-grid.cols-4 { grid-template-columns: 1fr; }
+    .hero-stats { flex-direction: column; gap: 12px; }
+    .section-title { font-size: 26px; }
+    .comparison-table { font-size: 11px; }
+    .comparison-table th, .comparison-table td { padding: 10px 12px; }
+  }
+
+  /* ── Tujuan Pembelajaran checklist items ──
+     Used exclusively inside the Tujuan Pembelajaran section cards.
+     Each <li> gets a coloured checkmark bullet via ::before.         */
+  .tujuan-list {
+    list-style: none; display: flex; flex-direction: column; gap: 8px;
+    padding: 0; margin: 0;
+  }
+  .tujuan-list li {
+    font-size: 13px; line-height: 1.6; color: var(--muted);
+    padding-left: 22px; position: relative;
+  }
+  .tujuan-list li::before {
+    content: '✓';
+    position: absolute; left: 0; top: 1px;
+    color: var(--green); font-weight: 800; font-size: 13px;
+  }
+  .tujuan-list li strong { color: var(--navy); font-weight: 700; }
+
+  /* ── Mobile sidebar overlay ──
+     Semi-transparent dark backdrop shown behind the open sidebar on mobile.
+     Clicking it calls closeSidebar() to dismiss both the sidebar and overlay. */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.4); z-index: 99;
+  }
+  .overlay.active { display: block; }
+
+  /* ============================================================
+     GLOSSARY TERM LINKS
+     Inline links inside content sections that jump to the glossary.
+     ============================================================ */
+  .gloss-link {
+    color: var(--blue);
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: color .15s;
+  }
+  .gloss-link:hover { color: var(--navy); text-decoration: underline solid; }
+
+  /* ============================================================
+     GLOSSARY SECTION
+     ============================================================ */
+  .gloss-search-wrap {
+    position: relative; max-width: 480px; margin-bottom: 28px;
+  }
+  .gloss-search-wrap .search-icon {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    font-size: 16px; pointer-events: none;
+  }
+  .gloss-search {
+    width: 100%; padding: 12px 16px 12px 42px;
+    border: 1.5px solid var(--border); border-radius: 12px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 14px; color: var(--text); background: var(--card);
+    outline: none; transition: border-color .2s, box-shadow .2s;
+  }
+  .gloss-search:focus { border-color: var(--sky); box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+
+  .gloss-alpha-bar {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 28px;
+  }
+  .gloss-alpha-btn {
+    width: 32px; height: 32px; border-radius: 8px;
+    border: 1.5px solid var(--border); background: var(--card);
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    cursor: pointer; transition: all .15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .gloss-alpha-btn:hover, .gloss-alpha-btn.active {
+    background: var(--navy); border-color: var(--navy); color: white;
+  }
+  .gloss-alpha-btn.inactive { opacity: 0.35; pointer-events: none; }
+
+  .gloss-letter-group { margin-bottom: 32px; }
+  .gloss-letter-heading {
+    font-family: 'Fraunces', serif;
+    font-size: 28px; font-weight: 900; color: var(--blue);
+    border-bottom: 2px solid var(--border); padding-bottom: 8px; margin-bottom: 16px;
+  }
+  .gloss-entries { display: flex; flex-direction: column; gap: 12px; }
+  .gloss-entry {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px 20px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .gloss-entry:target, .gloss-entry.highlight {
+    border-color: var(--sky);
+    box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+    animation: gloss-flash .6s ease;
+  }
+  @keyframes gloss-flash {
+    0%  { background: rgba(59,130,246,.12); }
+    100%{ background: var(--card); }
+  }
+  .gloss-entry-term {
+    font-size: 15px; font-weight: 800; color: var(--navy); margin-bottom: 4px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .gloss-entry-cat {
+    font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; padding: 2px 9px; border-radius: 100px;
+    background: rgba(27,79,216,.1); color: var(--blue); flex-shrink: 0;
+  }
+  .gloss-entry-def {
+    font-size: 13px; color: var(--muted); line-height: 1.7;
+  }
+  #glossNoResults {
+    text-align: center; padding: 40px 0; color: var(--muted);
+    font-size: 14px; display: none;
+  }
+
+  /* ============================================================
+     PETA KONSEP (CONCEPT MAP)
+     ============================================================ */
+  .peta-container {
+    width: 100%; overflow-x: auto; padding-bottom: 16px;
+  }
+  .peta-svg-wrap {
+    min-width: 900px; position: relative;
+  }
+  /* Central node */
+  .peta-center {
+    background: linear-gradient(135deg, var(--navy), #1e3d8f);
+    color: white; border-radius: 18px;
+    padding: 20px 28px; text-align: center;
+    display: inline-flex; flex-direction: column; align-items: center;
+    box-shadow: var(--shadow-lg);
+  }
+  .peta-center .pc-icon { font-size: 28px; margin-bottom: 6px; }
+  .peta-center .pc-title {
+    font-family: 'Fraunces', serif; font-size: 18px; font-weight: 900;
+    line-height: 1.2;
+  }
+  .peta-center .pc-sub { font-size: 11px; opacity: .65; margin-top: 4px; }
+
+  /* Branch node */
+  .peta-branch {
+    border-radius: 14px; padding: 14px 16px;
+    text-align: center; cursor: pointer;
+    transition: transform .2s, box-shadow .2s;
+    box-shadow: var(--shadow);
+  }
+  .peta-branch:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+  .peta-branch .pb-icon { font-size: 20px; margin-bottom: 5px; }
+  .peta-branch .pb-title { font-size: 13px; font-weight: 800; line-height: 1.3; }
+  .peta-branch .pb-sub { font-size: 10px; opacity: .7; margin-top: 3px; line-height: 1.4; }
+
+  /* Leaf node (sub-items) */
+  .peta-leaf {
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: 10px; padding: 8px 12px;
+    font-size: 11px; font-weight: 700; color: var(--navy);
+    text-align: center; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .peta-leaf:hover { border-color: var(--sky); background: rgba(59,130,246,.06); }
+
+  /* Connector lines drawn via SVG */
+  .peta-svg {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none; z-index: 0;
+    overflow: visible;
+  }
+  .peta-line {
+    fill: none; stroke: var(--border); stroke-width: 2;
+    stroke-dasharray: 5 3;
+  }
+  .peta-line-solid {
+    fill: none; stroke-width: 2;
+    stroke: rgba(59,130,246,.35);
+  }
+
+  /* Grid layout for the concept map */
+  .peta-grid {
+    display: grid;
+    grid-template-columns: 1fr 220px 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 0; align-items: start;
+    position: relative; z-index: 1;
+  }
+  .peta-col-left { display: flex; flex-direction: column; gap: 24px; padding: 24px 20px 24px 0; align-items: flex-end; }
+  .peta-col-right { display: flex; flex-direction: column; gap: 24px; padding: 24px 0 24px 20px; align-items: flex-start; }
+  .peta-col-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 24px 0; }
+
+  .peta-branch-wrap { display: flex; flex-direction: column; align-items: inherit; gap: 8px; width: 200px; }
+  .peta-leaves { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+  .peta-leaf-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* Color themes per branch */
+  .pb-bank    { background: linear-gradient(135deg, #1B4FD8, #3B82F6); color: white; }
+  .pb-iknb    { background: linear-gradient(135deg, var(--orange), var(--gold)); color: white; }
+  .pb-ojk     { background: linear-gradient(135deg, var(--purple), #a78bfa); color: white; }
+  .pb-lps     { background: linear-gradient(135deg, var(--teal), var(--green)); color: white; }
+  .pb-sentral { background: linear-gradient(135deg, #B45309, var(--gold)); color: white; }
+  .pb-syariah { background: linear-gradient(135deg, var(--teal), #0d9488); color: white; }
+  .pb-umum    { background: linear-gradient(135deg, #2563eb, #60a5fa); color: white; }
+  .pb-bpr     { background: linear-gradient(135deg, #ea580c, #fb923c); color: white; }
+
+  .peta-legend {
+    display: flex; gap: 20px; flex-wrap: wrap;
+    margin-top: 28px; padding: 16px 20px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    font-size: 12px;
+  }
+  .peta-legend-item { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+  .peta-legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+
+  @media (max-width: 900px) {
+    .peta-branch-wrap { width: 160px; }
+    .peta-grid { grid-template-columns: 1fr 180px 1fr; }
+  }
+
+  /* ============================================================
+     FLASHCARD COMPONENT  (#section-flashcard)
+     ============================================================
+
+     LAYOUT OVERVIEW
+     ────────────────
+     .fc-shell              — max-width wrapper, centred
+     .fc-topbar             — category filter pills + mastery bar row
+     .fc-category-pills     — scrollable horizontal pill filter strip
+     .fc-category-pill      — individual pill; .active = selected
+     .fc-mastery-wrap       — right-side mastery progress mini-widget
+     .fc-stage              — 3D perspective container for the card
+     .fc-card               — card frame; click toggles .flipped
+     .fc-inner              — preserve-3d wrapper; rotates on .flipped
+     .fc-front / .fc-back   — opposite faces; back pre-rotated 180°
+     .fc-controls           — Prev / counter / Next / Shuffle / Star row
+
+     3D FLIP MECHANISM
+     ──────────────────
+     The flip uses CSS transform-style:preserve-3d + perspective.
+     Adding .flipped to .fc-inner rotates it 180° on the Y axis.
+     backface-visibility:hidden hides the inactive face at all times.
+     To change flip speed, edit the transition duration on .fc-inner.
+
+     MASTERY SYSTEM
+     ───────────────
+     Clicking the ⭐ button on a card toggles it in the `masteredSet`
+     (a JS Set of card indices). The mastery bar and counter update
+     live. Mastered cards are visually dimmed in the dot-nav strip.
+
+     KEYBOARD SUPPORT
+     ─────────────────
+     ← / →    Prev / Next card
+     Space     Flip the current card
+     s         Shuffle the deck
+     ============================================================ */
+
+  /* ── Shell & top-bar ── */
+  .fc-shell {
+    max-width: 720px; margin: 0 auto;
+  }
+
+  .fc-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
+  }
+
+  /* Scrollable horizontal pill row for category filtering */
+  .fc-category-pills {
+    display: flex; gap: 8px; overflow-x: auto;
+    padding-bottom: 4px; flex: 1;
+    scrollbar-width: none; /* Firefox */
+  }
+  .fc-category-pills::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
+  .fc-category-pill {
+    white-space: nowrap; flex-shrink: 0;
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: 100px; padding: 6px 16px;
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    cursor: pointer; transition: all .2s; user-select: none;
+  }
+  .fc-category-pill:hover { border-color: var(--sky); color: var(--blue); }
+  .fc-category-pill.active {
+    background: var(--navy); border-color: var(--navy); color: white;
+  }
+
+  /* Mastery mini-widget — top-right of the topbar */
+  .fc-mastery-wrap {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+    flex-shrink: 0; min-width: 120px;
+  }
+  .fc-mastery-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .fc-mastery-bar-bg {
+    width: 120px; height: 6px; background: var(--border);
+    border-radius: 3px; overflow: hidden;
+  }
+  .fc-mastery-bar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--green), var(--teal));
+    border-radius: 3px; transition: width .5s ease; width: 0%;
+  }
+  .fc-mastery-count {
+    font-size: 11px; font-weight: 700; color: var(--green);
+  }
+
+  /* ── 3D stage + card ── */
+  .fc-stage {
+    perspective: 1200px; /* depth of 3D effect; increase for shallower flip */
+    margin-bottom: 20px; cursor: pointer;
+  }
+
+  /* Outer card frame — sets visible size */
+  .fc-card {
+    width: 100%; min-height: 280px;
+    position: relative;
+  }
+
+  /* Inner wrapper rotates; preserve-3d keeps both faces in 3D space */
+  .fc-inner {
+    position: relative; width: 100%; height: 100%; min-height: 280px;
+    transform-style: preserve-3d;
+    transition: transform .55s cubic-bezier(.4,0,.2,1); /* flip easing */
+  }
+  .fc-inner.flipped { transform: rotateY(180deg); }
+
+  /* Shared face styles */
+  .fc-front, .fc-back {
+    position: absolute; inset: 0;
+    border-radius: 22px;
+    backface-visibility: hidden; /* hides the face when rotated away */
+    -webkit-backface-visibility: hidden;
+    display: flex; flex-direction: column;
+    padding: 36px 40px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+
+  /* FRONT FACE — term / concept */
+  .fc-front {
+    background: linear-gradient(135deg, var(--navy) 0%, #1e3d8f 100%);
+    color: white;
+    align-items: flex-start; justify-content: space-between;
+  }
+  .fc-front::before {
+    /* Large decorative watermark circle in background */
+    content: '';
+    position: absolute; right: -60px; bottom: -60px;
+    width: 240px; height: 240px; border-radius: 50%;
+    background: rgba(255,255,255,.04);
+    pointer-events: none;
+  }
+  .fc-front-category {
+    font-size: 10px; font-weight: 800; letter-spacing: .1em;
+    text-transform: uppercase;
+    background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18);
+    border-radius: 100px; padding: 4px 12px;
+    color: rgba(255,255,255,.8); margin-bottom: 20px; align-self: flex-start;
+  }
+  .fc-front-term {
+    font-family: 'Fraunces', serif;
+    font-size: 30px; font-weight: 900; line-height: 1.2;
+    color: white; flex: 1; display: flex; align-items: center;
+  }
+  .fc-front-hint {
+    font-size: 12px; color: rgba(255,255,255,.45); font-weight: 500;
+    display: flex; align-items: center; gap: 6px; margin-top: 20px;
+  }
+  .fc-front-hint::before {
+    content: '↩'; font-size: 14px;
+  }
+
+  /* BACK FACE — definition / explanation; pre-rotated so it faces away */
+  .fc-back {
+    background: var(--card);
+    border: 1px solid var(--border);
+    transform: rotateY(180deg); /* pre-rotated to face backwards */
+    color: var(--text);
+    align-items: flex-start; justify-content: space-between;
+  }
+  .fc-back-label {
+    font-size: 10px; font-weight: 800; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--blue); margin-bottom: 12px;
+  }
+  .fc-back-def {
+    font-size: 15px; line-height: 1.75; color: var(--text);
+    flex: 1;
+  }
+  .fc-back-def strong { color: var(--navy); }
+  .fc-back-example {
+    margin-top: 16px; padding: 12px 16px;
+    background: rgba(27,79,216,.06); border: 1px solid rgba(27,79,216,.15);
+    border-radius: 10px; font-size: 12.5px; color: var(--blue);
+    line-height: 1.6;
+  }
+  .fc-back-example .ex-label {
+    font-weight: 800; font-size: 10px; letter-spacing: .06em;
+    text-transform: uppercase; margin-bottom: 4px; display: block;
+  }
+
+  /* Mastered overlay — a green check stamp on mastered cards */
+  .fc-mastered-stamp {
+    position: absolute; top: 18px; right: 20px;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--green); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; box-shadow: 0 2px 8px rgba(16,185,129,.4);
+    opacity: 0; transition: opacity .3s; pointer-events: none;
+  }
+  .fc-inner.mastered .fc-mastered-stamp { opacity: 1; }
+
+  /* ── Controls row ── */
+  .fc-controls {
+    display: flex; align-items: center; justify-content: center;
+    gap: 12px; flex-wrap: wrap; margin-bottom: 24px;
+  }
+
+  .fc-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 10px 20px; border-radius: 12px; border: 1.5px solid var(--border);
+    background: var(--card); color: var(--navy);
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: all .2s; font-family: 'Plus Jakarta Sans', sans-serif;
+    box-shadow: var(--shadow);
+  }
+  .fc-btn:hover { border-color: var(--sky); color: var(--blue); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .fc-btn:active { transform: translateY(0); }
+  .fc-btn.fc-btn-nav { padding: 10px 16px; font-size: 17px; }
+  .fc-btn.fc-btn-nav:disabled {
+    opacity: .3; cursor: not-allowed; transform: none; box-shadow: none;
+  }
+
+  /* Star / mastery toggle button */
+  .fc-btn-star { font-size: 18px; padding: 9px 14px; }
+  .fc-btn-star.starred {
+    background: rgba(245,166,35,.12); border-color: var(--gold); color: var(--gold);
+  }
+
+  /* Card counter badge — "5 / 24" */
+  .fc-counter {
+    font-family: 'Fraunces', serif;
+    font-size: 20px; font-weight: 900; color: var(--navy);
+    min-width: 64px; text-align: center; line-height: 1;
+  }
+  .fc-counter span { font-size: 12px; color: var(--muted); font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; }
+
+  /* ── Dot navigation strip ── */
+  .fc-dots {
+    display: flex; justify-content: center; gap: 6px;
+    flex-wrap: wrap; margin-bottom: 28px;
+  }
+  .fc-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--border); cursor: pointer;
+    transition: all .2s; border: none; padding: 0;
+  }
+  .fc-dot:hover { background: var(--sky); transform: scale(1.3); }
+  .fc-dot.active { background: var(--blue); width: 22px; border-radius: 4px; }
+  .fc-dot.mastered-dot { background: var(--green); }
+
+  /* ── Keyboard shortcut hint bar ── */
+  .fc-keyboard-hints {
+    display: flex; justify-content: center; gap: 16px; flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .fc-key-hint {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--muted); font-weight: 500;
+  }
+  .fc-key {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: 5px; padding: 2px 7px; font-size: 11px;
+    font-weight: 700; color: var(--text); min-width: 24px;
+    box-shadow: 0 2px 0 var(--border);
+  }
+
+  /* ── Mobile flashcard overrides (≤600 px) ──
+     Problem: on narrow screens the 3D flip uses position:absolute/inset:0
+     on both faces, constraining them to the fixed min-height of the parent.
+     Long definitions then get clipped by overflow:hidden.
+     Fix: disable the 3D perspective entirely and switch to a simple
+     opacity fade + natural block layout so the card grows to fit its content.
+     Desktop/tablet (>600 px) keeps the original 3D flip unchanged.           */
+  @media (max-width: 600px) {
+    /* Disable 3D perspective — no longer needed */
+    .fc-stage { perspective: none; }
+
+    /* Let the inner wrapper be as tall as its content */
+    .fc-card { min-height: auto; }
+    .fc-inner {
+      min-height: auto;
+      transform-style: flat;   /* disable preserve-3d */
+      transition: none;        /* no 3D rotation transition */
+      display: block;
+    }
+    /* Applying .flipped no longer rotates the container */
+    .fc-inner.flipped { transform: none; }
+
+    /* Both faces: take them out of absolute stacking,
+       let them be normal block elements in flow.          */
+    .fc-front, .fc-back {
+      position: relative;
+      inset: auto;
+      backface-visibility: visible;
+      -webkit-backface-visibility: visible;
+      transform: none !important;   /* override the rotateY(180deg) on .fc-back */
+      transition: opacity .25s ease;
+    }
+
+    /* Default: front visible, back hidden */
+    .fc-front  { display: flex; opacity: 1; pointer-events: auto; }
+    .fc-back   { display: none; opacity: 0; pointer-events: none; }
+
+    /* Flipped state: hide front, reveal back in normal flow */
+    .fc-inner.flipped .fc-front {
+      display: none; opacity: 0; pointer-events: none;
+    }
+    .fc-inner.flipped .fc-back {
+      display: flex; opacity: 1; pointer-events: auto;
+    }
+
+    /* Shrink front term font and padding on very small screens */
+    .fc-front-term { font-size: 22px; }
+    .fc-front, .fc-back { padding: 26px 22px; }
+
+    /* Keyboard hints are irrelevant on touch */
+    .fc-keyboard-hints { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     BODY STRUCTURE
+     Overlay → Hamburger → Sidebar → Main content
+     ============================================================ -->
+
+<!-- Dark semi-transparent backdrop shown behind the sidebar on mobile.
+     Clicking it fires closeSidebar() to dismiss the nav menu. -->
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
+<!-- Mobile hamburger button — hidden on desktop, visible at ≤900 px.
+     Three <span> elements render as the classic three-bar icon. -->
+<button class="hamburger" id="hamburger" onclick="toggleSidebar()">
+  <span></span><span></span><span></span>
+</button>
+
+<!-- ============================================================
+     SIDEBAR NAVIGATION
+     Each .nav-item calls showSection('section-id') on click.
+     The active item gets the .active class via JS in showSection().
+     To add a nav link: copy a .nav-item, change the emoji, label,
+     and showSection() argument to match your new section ID.
+     ============================================================ -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-badge">
+      <div class="icon">🏦</div>
+      <div>
+        <div class="title">Bank & IKNB</div>
+        <div class="subtitle">Ekonomi-X</div>
+      </div>
+    </div>
+  </div>
+  <a class="nav-item active" onclick="showSection('home')" href="#">
+    <div class="nav-icon">🏠</div> Beranda <div class="nav-dot"></div>
+  </a>
+  <div class="sidebar-section-title">Materi</div>
+
+  <a class="nav-item" onclick="showSection('tujuan')" href="#">
+    <div class="nav-icon">🎯</div> Tujuan Pembelajaran <div class="nav-dot"></div>
+  </a>
+  <a class="nav-item" onclick="showSection('jenis-bank')" href="#">
+    <div class="nav-icon">📊</div> Jenis Bank <div class="nav-dot"></div>
+  </a>
+  <a class="nav-item" onclick="showSection('bank-sentral')" href="#">
+    <div class="nav-icon">🏛️</div> Bank Sentral (BI) <div class="nav-dot"></div>
+  </a>
+  <a class="nav-item" onclick="showSection('bank-umum')" href="#">
+    <div class="nav-icon">💳</div> Bank Umum <div class="nav-dot"></div>
+  </a>
+  <a class="nav-item" onclick="showSection('bpr')" href="#">
+    <div class="nav-icon">🏘️</div> BPR <div class="nav-dot"></div>
+  </a>
+  <a class="nav-item" onclick="showSection('bank-syariah')" href="#">
+    <div class="nav-icon">⚖️</div> Bank Syariah <div class="nav-dot"></div>
+  </a>
+  <a class="nav-item" onclick="showSection('iknb')" href="#">
+    <div class="nav-icon">📈</div> IKNB <div class="nav-dot"></div>
+  </a>
+  <a class="nav-item" onclick="showSection('ojk')" href="#">
+    <div class="nav-icon">🛡️</div> OJK <div class="nav-dot"></div>
+  </a>
+  <a class="nav-item" onclick="showSection('lps')" href="#">
+    <div class="nav-icon">🔒</div> LPS <div class="nav-dot"></div>
+  </a>
+
+  <div class="sidebar-section-title" style="margin-top:8px;">Latihan</div>
+  <a class="nav-item" onclick="showSection('quiz')" href="#">
+    <div class="nav-icon">🧠</div> Kuis Interaktif <div class="nav-dot"></div>
+  </a>
+  <a class="nav-item" onclick="showSection('flashcard')" href="#">
+    <div class="nav-icon">🃏</div> Flashcard <div class="nav-dot"></div>
+  </a>
+
+  <div class="sidebar-section-title" style="margin-top:8px;">Referensi</div>
+  <a class="nav-item" onclick="showSection('peta-konsep')" href="#">
+    <div class="nav-icon">🗺️</div> Peta Konsep <div class="nav-dot"></div>
+  </a>
+  <a class="nav-item" onclick="showSection('glosarium')" href="#">
+    <div class="nav-icon">📖</div> Glosarium <div class="nav-dot"></div>
+  </a>
+
+  <div class="sidebar-progress" style="margin-top:auto;">
+    <div class="sp-label">Progres Belajar</div>
+    <div class="sp-bar-bg"><div class="sp-bar-fill" id="progressBar"></div></div>
+    <div class="sp-percent" id="progressText">0%</div>
+  </div>
+</nav>
+
+<!-- ============================================================
+     MAIN CONTENT AREA
+     Offset 260 px from the left on desktop to clear the sidebar.
+     Each child <div class="section"> is a "page" — only the one
+     with the .active class is visible at any time.
+     ============================================================ -->
+<div class="main">
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: TUJUAN PEMBELAJARAN  (id="section-tujuan")
+       Lists the learning objectives for each topic covered in
+       this module. Presented as a card-per-topic layout with
+       checklist items inside each card.
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-tujuan" class="section">
+    <div class="section-header">
+      <div class="section-eyebrow">🎯 Tujuan Pembelajaran</div>
+      <h2 class="section-title">Yang Akan Kamu <span>Pelajari</span></h2>
+      <p class="section-desc">Setelah mempelajari modul ini, kamu diharapkan mampu memahami dan menjelaskan seluruh materi berikut sesuai Capaian Pembelajaran Ekonomi SMA/SMK.</p>
+    </div>
+
+    <!-- Overall module learning outcome banner -->
+    <div class="feature-card" data-bg-text="TUJUAN" style="margin-bottom:32px;">
+      <div class="badge">📋 Capaian Utama</div>
+      <h2>Kompetensi Akhir Modul</h2>
+      <p>Peserta didik mampu <strong style="color:var(--gold)">menganalisis peran lembaga keuangan bank dan non-bank</strong> dalam perekonomian Indonesia, serta memahami mekanisme pengawasannya oleh OJK dan LPS.</p>
+    </div>
+
+    <!-- Per-topic objective cards -->
+    <div class="cards-grid cols-2" style="margin-bottom:28px;">
+
+      <!-- 1. Jenis Bank -->
+      <div class="card accent-blue">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div class="card-icon ci-blue" style="margin:0;width:40px;height:40px;font-size:18px;">📊</div>
+          <h3 style="margin:0;">Jenis-Jenis Bank</h3>
+        </div>
+        <ul class="tujuan-list">
+          <li>Menyebutkan jenis bank berdasarkan <strong>fungsi</strong> (Sentral, Umum, BPR)</li>
+          <li>Membedakan bank berdasarkan <strong>kepemilikan</strong> (Pemerintah, Swasta, Asing)</li>
+          <li>Membedakan bank berdasarkan <strong>prinsip operasional</strong> (Konvensional dan Syariah)</li>
+        </ul>
+      </div>
+
+      <!-- 2. Bank Sentral -->
+      <div class="card accent-gold">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div class="card-icon ci-gold" style="margin:0;width:40px;height:40px;font-size:18px;">🏛️</div>
+          <h3 style="margin:0;">Bank Sentral (BI)</h3>
+        </div>
+        <ul class="tujuan-list">
+          <li>Menjelaskan <strong>tujuan dan fungsi</strong> Bank Indonesia berdasarkan UU No. 13 Tahun 1999</li>
+          <li>Menguraikan <strong>tiga tugas utama</strong> BI: kebijakan moneter, sistem pembayaran, dan pengedaran uang</li>
+          <li>Membedakan peran BI dengan bank umum</li>
+        </ul>
+      </div>
+
+      <!-- 3. Bank Umum -->
+      <div class="card accent-green">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div class="card-icon ci-green" style="margin:0;width:40px;height:40px;font-size:18px;">💳</div>
+          <h3 style="margin:0;">Bank Umum</h3>
+        </div>
+        <ul class="tujuan-list">
+          <li>Menjelaskan fungsi bank umum sebagai <strong>penghimpun dana</strong> (tabungan, deposito, giro)</li>
+          <li>Menjelaskan fungsi bank umum sebagai <strong>penyalur dana</strong> (KPR, kredit modal kerja, investasi)</li>
+          <li>Menyebutkan <strong>jasa layanan</strong> bank umum (transfer, pembayaran tagihan, safe deposit box)</li>
+        </ul>
+      </div>
+
+      <!-- 4. BPR -->
+      <div class="card accent-orange">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div class="card-icon ci-orange" style="margin:0;width:40px;height:40px;font-size:18px;">🏘️</div>
+          <h3 style="margin:0;">Bank Perkreditan Rakyat</h3>
+        </div>
+        <ul class="tujuan-list">
+          <li>Mendeskripsikan <strong>definisi dan karakteristik</strong> BPR</li>
+          <li>Menyebutkan kegiatan yang <strong>boleh</strong> dilakukan BPR</li>
+          <li>Menyebutkan kegiatan yang <strong>tidak boleh</strong> dilakukan BPR (giro, penyertaan modal, asuransi)</li>
+        </ul>
+      </div>
+
+      <!-- 5. Bank Syariah -->
+      <div class="card accent-teal">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div class="card-icon ci-teal" style="margin:0;width:40px;height:40px;font-size:18px;">⚖️</div>
+          <h3 style="margin:0;">Bank Syariah</h3>
+        </div>
+        <ul class="tujuan-list">
+          <li>Menjelaskan prinsip operasional <strong>bank syariah</strong> berbasis hukum Islam</li>
+          <li>Membandingkan <strong>perbedaan</strong> bank syariah dan bank konvensional (sistem imbalan, investasi, hubungan nasabah)</li>
+          <li>Menyebutkan contoh <strong>akad syariah</strong> (Mudharabah, Murabahah, Ijarah)</li>
+        </ul>
+      </div>
+
+      <!-- 6. IKNB -->
+      <div class="card accent-purple">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div class="card-icon ci-purple" style="margin:0;width:40px;height:40px;font-size:18px;">📈</div>
+          <h3 style="margin:0;">Industri Keuangan Non Bank</h3>
+        </div>
+        <ul class="tujuan-list">
+          <li>Mendefinisikan <strong>IKNB</strong> dan menyebutkan 7 jenisnya</li>
+          <li>Menjelaskan peran <strong>Pasar Modal, Koperasi, Asuransi, Pegadaian, Leasing, Fintech, dan Dana Pensiun</strong></li>
+          <li>Memberi contoh nyata setiap jenis IKNB di Indonesia</li>
+        </ul>
+      </div>
+
+      <!-- 7. OJK -->
+      <div class="card accent-blue">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div class="card-icon ci-blue" style="margin:0;width:40px;height:40px;font-size:18px;">🛡️</div>
+          <h3 style="margin:0;">Otoritas Jasa Keuangan</h3>
+        </div>
+        <ul class="tujuan-list">
+          <li>Menjelaskan <strong>tujuan, fungsi, dan tugas</strong> OJK dalam sistem keuangan Indonesia</li>
+          <li>Mengidentifikasi <strong>ruang lingkup pengawasan</strong> OJK (perbankan, pasar modal, IKNB, fintech)</li>
+          <li>Memahami peran OJK dalam <strong>perlindungan konsumen</strong></li>
+        </ul>
+      </div>
+
+      <!-- 8. LPS -->
+      <div class="card accent-red">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <div class="card-icon ci-red" style="margin:0;width:40px;height:40px;font-size:18px;">🔒</div>
+          <h3 style="margin:0;">Lembaga Penjamin Simpanan</h3>
+        </div>
+        <ul class="tujuan-list">
+          <li>Menjelaskan <strong>latar belakang</strong> berdirinya LPS (krisis 1998)</li>
+          <li>Menyebutkan <strong>lima fungsi</strong> LPS dalam menjaga stabilitas perbankan</li>
+          <li>Mengetahui <strong>batas jaminan simpanan</strong> LPS yang berlaku saat ini</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- Bottom CTA -->
+    <div class="fact-box info">
+      <div class="fb-icon">💡</div>
+      <div>
+        <strong>Cara terbaik menggunakan modul ini:</strong> Pelajari setiap topik secara berurutan, kerjakan Kuis Interaktif untuk menguji pemahaman, lalu gunakan Flashcard untuk mengulang konsep-konsep kunci sebelum ujian.
+        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="showSection('jenis-bank')" style="font-size:13px;padding:10px 18px;">📚 Mulai Materi</button>
+          <button class="btn btn-secondary" onclick="showSection('quiz')" style="font-size:13px;padding:10px 18px;">🧠 Kuis Interaktif</button>
+          <button class="btn btn-secondary" onclick="showSection('flashcard')" style="font-size:13px;padding:10px 18px;">🃏 Flashcard</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: HOME / LANDING PAGE  (id="section-home")
+       The only section that starts with .active (visible on load).
+       Contains the hero banner and an overview card grid.
+       Cards in the overview grid are clickable and navigate to
+       their corresponding section via onclick="showSection(...)".
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-home" class="section active" style="padding:0;">
+    <div class="hero">
+      <div class="hero-grid">
+        <div>
+          <div class="hero-eyebrow">✦ Ekonomi-X</div>
+          <h1>Bank & <span>Industri Keuangan</span> Non Bank</h1>
+          <p>Pelajari sistem keuangan Indonesia secara interaktif dari Bank Indonesia, Bank Umum, BPR, hingga lembaga keuangan non-bank seperti asuransi, leasing, dan fintech.</p>
+          <button class="hero-cta" onclick="showSection('jenis-bank')">Mulai Belajar →</button>
+          <div class="hero-stats">
+            <div class="hero-stat"><div class="hs-num">9</div><div class="hs-label">Topik</div></div>
+            <div class="hero-stat"><div class="hs-num">10</div><div class="hs-label">Soal Kuis</div></div>
+            <div class="hero-stat"><div class="hs-num">7</div><div class="hs-label">Jenis IKNB</div></div>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="hero-card-stack">
+            <div class="hcs-card c1">🏦<div class="card-label">Bank</div></div>
+            <div class="hcs-card c2">📈<div class="card-label">Investasi</div></div>
+            <div class="hcs-card c3">🛡️<div class="card-label">OJK</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="padding: 48px 60px;">
+      <div class="section-header">
+        <div class="section-eyebrow">Gambaran Umum</div>
+        <h2 class="section-title">Apa yang akan kamu <span>pelajari?</span></h2>
+        <p class="section-desc">Materi ini mencakup seluruh sistem keuangan Indonesia yang digunakan dalam kehidupan sehari-hari.</p>
+      </div>
+      <div class="cards-grid cols-3">
+        <div class="card accent-blue" onclick="showSection('bank-sentral')" style="cursor:pointer">
+          <div class="card-icon ci-blue">🏛️</div>
+          <h3>Bank Sentral (BI)</h3>
+          <p>Bank Indonesia sebagai bank sirkulasi dan induk perbankan nasional yang menjaga kestabilan rupiah.</p>
+        </div>
+        <div class="card accent-gold" onclick="showSection('bank-umum')" style="cursor:pointer">
+          <div class="card-icon ci-gold">💳</div>
+          <h3>Bank Umum</h3>
+          <p>Menghimpun dana masyarakat (tabungan, deposito, giro) dan menyalurkannya dalam bentuk kredit.</p>
+        </div>
+        <div class="card accent-green" onclick="showSection('bpr')" style="cursor:pointer">
+          <div class="card-icon ci-green">🏘️</div>
+          <h3>BPR</h3>
+          <p>Bank Perkreditan Rakyat melayani masyarakat kecil dengan produk simpanan dan pinjaman sederhana.</p>
+        </div>
+        <div class="card accent-teal" onclick="showSection('bank-syariah')" style="cursor:pointer">
+          <div class="card-icon ci-teal">⚖️</div>
+          <h3>Bank Syariah</h3>
+          <p>Bank berbasis prinsip Islam dengan sistem bagi hasil, berbeda dari bank konvensional yang menggunakan bunga.</p>
+        </div>
+        <div class="card accent-orange" onclick="showSection('iknb')" style="cursor:pointer">
+          <div class="card-icon ci-orange">📈</div>
+          <h3>IKNB</h3>
+          <p>Pasar Modal, Koperasi, Asuransi, Pegadaian, Leasing, Fintech, hingga Dana Pensiun.</p>
+        </div>
+        <div class="card accent-purple" onclick="showSection('ojk')" style="cursor:pointer">
+          <div class="card-icon ci-purple">🛡️</div>
+          <h3>OJK & LPS</h3>
+          <p>Lembaga pengawas sektor keuangan dan penjamin simpanan nasabah perbankan Indonesia.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: JENIS BANK  (id="section-jenis-bank")
+       Covers the three classification criteria for Indonesian banks:
+       by function, by ownership, and by operational principle.
+       Uses .cards-grid.cols-3 for the three criteria cards, then
+       .two-col for the bank name chip lists.
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-jenis-bank" class="section">
+    <div class="section-header">
+      <div class="section-eyebrow">📊 Klasifikasi</div>
+      <h2 class="section-title">Jenis-Jenis <span>Bank</span></h2>
+      <p class="section-desc">Bank di Indonesia dapat dikategorikan berdasarkan tiga kriteria utama: fungsi, kepemilikan, dan prinsip operasional.</p>
+    </div>
+
+    <div class="cards-grid cols-3" style="margin-bottom:28px;">
+      <div class="card accent-blue">
+        <div class="card-icon ci-blue">⚙️</div>
+        <h3>Berdasarkan Fungsi</h3>
+        <p>Bank dibagi menjadi tiga jenis berdasarkan tugas dan fungsinya dalam sistem keuangan nasional.</p>
+        <div class="bank-chips" style="margin-top:14px;">
+          <span class="bank-chip">Bank Sentral</span>
+          <span class="bank-chip">Bank Umum</span>
+          <span class="bank-chip">BPR</span>
+        </div>
+      </div>
+      <div class="card accent-gold">
+        <div class="card-icon ci-gold">🏢</div>
+        <h3>Berdasarkan Kepemilikan</h3>
+        <p>Bank dibagi berdasarkan siapa yang memiliki dan mengendalikan lembaga perbankan tersebut.</p>
+        <div class="bank-chips" style="margin-top:14px;">
+          <span class="bank-chip">Bank Pemerintah</span>
+          <span class="bank-chip">Bank Swasta</span>
+          <span class="bank-chip">Bank Asing</span>
+        </div>
+      </div>
+      <div class="card accent-green">
+        <div class="card-icon ci-green">📜</div>
+        <h3>Berdasarkan Prinsip</h3>
+        <p>Bank dibedakan berdasarkan landasan hukum dan sistem operasional keuangannya.</p>
+        <div class="bank-chips" style="margin-top:14px;">
+          <span class="bank-chip">Bank Konvensional</span>
+          <span class="bank-chip">Bank Syariah</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <h3 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:18px;">Contoh Bank Berdasarkan Kepemilikan</h3>
+    <div class="two-col">
+      <div>
+        <p style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">🏛️ Bank Pemerintah Pusat</p>
+        <div class="bank-chips">
+          <span class="bank-chip">Bank Mandiri</span>
+          <span class="bank-chip">Bank BRI</span>
+          <span class="bank-chip">Bank BNI</span>
+          <span class="bank-chip">Bank BTN</span>
+          <span class="bank-chip">Bank Syariah Indonesia</span>
+        </div>
+        <p style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:20px 0 12px;">🗺️ Bank Pemerintah Daerah</p>
+        <div class="bank-chips">
+          <span class="bank-chip">Bank DKI</span>
+          <span class="bank-chip">Bank BJB</span>
+          <span class="bank-chip">Bank Jatim</span>
+          <span class="bank-chip">Bank Nagari</span>
+          <span class="bank-chip">Bank Papua</span>
+        </div>
+      </div>
+      <div>
+        <p style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">🏢 Bank Swasta Nasional</p>
+        <div class="bank-chips">
+          <span class="bank-chip">BCA</span>
+          <span class="bank-chip">CIMB Niaga</span>
+          <span class="bank-chip">Bank Danamon</span>
+          <span class="bank-chip">Bank Permata</span>
+          <span class="bank-chip">OCBC NISP</span>
+          <span class="bank-chip">Bank Mega</span>
+          <span class="bank-chip">Bank Panin</span>
+        </div>
+        <p style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:20px 0 12px;">🌏 Bank Asing</p>
+        <div class="bank-chips">
+          <span class="bank-chip">HSBC</span>
+          <span class="bank-chip">Citibank</span>
+          <span class="bank-chip">Maybank</span>
+          <span class="bank-chip">Hana Bank</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:28px;" class="fact-box info">
+      <div class="fb-icon">💡</div>
+      <div><strong>Tahukah kamu?</strong> Bank asing di Indonesia harus beroperasi sesuai aturan Bank Indonesia dan OJK, serta biasanya hanya melayani transaksi korporasi dan nasabah premium.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: BANK SENTRAL / BANK INDONESIA  (id="section-bank-sentral")
+       Covers BI's legal basis, goal, and three main tasks.
+       Uses a .feature-card banner and .cards-grid.cols-3.
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-bank-sentral" class="section">
+    <div class="section-header">
+      <div class="section-eyebrow">🏛️ Bank Sentral</div>
+      <h2 class="section-title">Bank Indonesia <span>(BI)</span></h2>
+      <p class="section-desc">Bank sentral Republik Indonesia yang berfungsi sebagai bank sirkulasi dan induk dari bank-bank lain (banker of banks).</p>
+    </div>
+
+    <div class="feature-card" data-bg-text="BANK INDONESIA" style="margin-bottom:28px;">
+      <div class="badge">📜 UU No. 13 Tahun 1999</div>
+      <h2>Tujuan Bank Indonesia</h2>
+      <p>Mencapai dan memelihara <strong style="color:var(--gold)"><a class="gloss-link" onclick="goToGloss('kestabilan-rupiah')">kestabilan nilai rupiah</a></strong> — baik terhadap barang dan jasa (<a class="gloss-link" onclick="goToGloss('inflasi')">inflasi</a>) maupun terhadap mata uang negara lain (nilai tukar).</p>
+    </div>
+
+    <h3 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:16px;">Tiga Tugas Utama Bank Indonesia</h3>
+    <div class="cards-grid cols-3" style="margin-bottom:28px;">
+      <div class="card accent-blue">
+        <div class="card-icon ci-blue">💵</div>
+        <h3>Mengeluarkan Alat Pembayaran yang Sah</h3>
+        <p>Memiliki <strong>hak monopoli</strong> untuk mengedarkan uang kertas dan logam sebagai alat pembayaran yang sah di Indonesia.</p>
+      </div>
+      <div class="card accent-gold">
+        <div class="card-icon ci-gold">📊</div>
+        <h3><a class="gloss-link" onclick="goToGloss('kebijakan-moneter')">Kebijakan Moneter</a></h3>
+        <p>Mengendalikan jumlah uang yang beredar agar sesuai dengan kebutuhan perekonomian — untuk mencegah <a class="gloss-link" onclick="goToGloss('inflasi')">inflasi</a> dan deflasi.</p>
+      </div>
+      <div class="card accent-green">
+        <div class="card-icon ci-green">🔄</div>
+        <h3><a class="gloss-link" onclick="goToGloss('sistem-pembayaran')">Sistem Pembayaran</a></h3>
+        <p>Berwenang mengatur dan memberikan persetujuan/izin atas penyelenggaraan jasa sistem pembayaran di Indonesia.</p>
+      </div>
+    </div>
+
+    <div class="fact-box warn">
+      <div class="fb-icon">⚠️</div>
+      <div><strong>Penting!</strong> Bank Indonesia <em>bukan</em> bank komersial — tidak melayani tabungan atau kredit masyarakat umum. BI hanya berhubungan langsung dengan bank-bank lain dan pemerintah.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: BANK UMUM  (id="section-bank-umum")
+       Covers the three functions of commercial banks using an
+       accordion (.accordion > .acc-item) for each function group.
+       The first accordion item starts open (has class "open").
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-bank-umum" class="section">
+    <div class="section-header">
+      <div class="section-eyebrow">💳 Bank Umum</div>
+      <h2 class="section-title">Bank Umum & <span>Fungsinya</span></h2>
+      <p class="section-desc">Badan usaha yang menghimpun dana dari masyarakat dalam bentuk simpanan dan menyalurkannya kepada masyarakat dalam rangka meningkatkan taraf hidup rakyat banyak.</p>
+    </div>
+
+    <h3 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:16px;">Tiga Fungsi Utama</h3>
+    <div class="accordion" style="margin-bottom:28px;">
+      <div class="acc-item open">
+        <div class="acc-header" onclick="toggleAcc(this)">
+          <div class="acc-left">
+            <div class="acc-icon-wrap ci-blue" style="border-radius:10px;">💰</div>
+            <span>Penghimpun Dana dari Masyarakat</span>
+          </div>
+          <div class="acc-arrow">▼</div>
+        </div>
+        <div class="acc-body">
+          <div class="acc-body-inner">
+            <div class="cards-grid cols-3">
+              <div class="card accent-blue" style="box-shadow:none;">
+                <div class="card-icon ci-blue" style="width:36px;height:36px;font-size:16px;">💼</div>
+                <h3><a class="gloss-link" onclick="goToGloss('tabungan')">Tabungan</a></h3>
+                <p>Simpanan yang penyetoran dan penarikannya dapat dilakukan <strong>kapan saja</strong>. Contoh: Tabungan BRI, BCA.</p>
+                <span class="tag tag-blue" style="margin-top:10px;display:inline-block;">Saving Deposit</span>
+              </div>
+              <div class="card accent-gold" style="box-shadow:none;">
+                <div class="card-icon ci-gold" style="width:36px;height:36px;font-size:16px;">📅</div>
+                <h3><a class="gloss-link" onclick="goToGloss('deposito')">Deposito</a></h3>
+                <p>Simpanan yang penarikannya hanya bisa dilakukan pada <strong>waktu tertentu</strong> (jatuh tempo). <a class="gloss-link" onclick="goToGloss('bunga')">Bunga</a> lebih tinggi.</p>
+                <span class="tag tag-gold" style="margin-top:10px;display:inline-block;">Time Deposit</span>
+              </div>
+              <div class="card accent-green" style="box-shadow:none;">
+                <div class="card-icon ci-green" style="width:36px;height:36px;font-size:16px;">📝</div>
+                <h3><a class="gloss-link" onclick="goToGloss('giro')">Giro</a></h3>
+                <p>Simpanan yang dapat ditarik kapan saja via <strong>cek</strong> atau <strong><a class="gloss-link" onclick="goToGloss('bilyet-giro')">bilyet giro</a></strong>. Fokus untuk bisnis frekuensi tinggi.</p>
+                <span class="tag tag-green" style="margin-top:10px;display:inline-block;">Demand Deposit</span>
+              </div>
+            </div>
+            <div class="fact-box info" style="margin-top:16px;">
+              <div class="fb-icon">🗒️</div>
+              <div><strong>Cek vs Bilyet Giro:</strong> Cek bisa langsung dicairkan di bank, sedangkan bilyet giro hanya bisa disetorkan ke rekening (tidak bisa dicairkan tunai langsung).</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="acc-item">
+        <div class="acc-header" onclick="toggleAcc(this)">
+          <div class="acc-left">
+            <div class="acc-icon-wrap ci-orange" style="border-radius:10px;">🏠</div>
+            <span>Penyalur Dana ke Masyarakat (Kredit)</span>
+          </div>
+          <div class="acc-arrow">▼</div>
+        </div>
+        <div class="acc-body">
+          <div class="acc-body-inner">
+            <div class="cards-grid cols-2">
+              <div class="card accent-blue" style="box-shadow:none;">
+                <div class="card-icon ci-blue" style="width:36px;height:36px;font-size:16px;">🏠</div>
+                <h3><a class="gloss-link" onclick="goToGloss('kpr')">Kredit Pemilikan Rumah (KPR)</a></h3>
+                <p><a class="gloss-link" onclick="goToGloss('kredit')">Kredit</a> untuk membeli rumah atau kebutuhan konsumtif lainnya dengan jaminan/<a class="gloss-link" onclick="goToGloss('agunan')">agunan</a> berupa rumah.</p>
+              </div>
+              <div class="card accent-orange" style="box-shadow:none;">
+                <div class="card-icon ci-orange" style="width:36px;height:36px;font-size:16px;">💼</div>
+                <h3>Kredit Modal Kerja</h3>
+                <p>Diberikan untuk pembiayaan modal kerja perusahaan, baik perorangan maupun berbadan hukum.</p>
+              </div>
+              <div class="card accent-green" style="box-shadow:none;">
+                <div class="card-icon ci-green" style="width:36px;height:36px;font-size:16px;">🏭</div>
+                <h3>Kredit Investasi</h3>
+                <p>Untuk membiayai pembangunan gedung, pabrik, pembelian mesin dan alat produksi usaha.</p>
+              </div>
+              <div class="card accent-purple" style="box-shadow:none;">
+                <div class="card-icon ci-purple" style="width:36px;height:36px;font-size:16px;">💳</div>
+                <h3>Kartu Kredit</h3>
+                <p>Alat pembayaran non-tunai — penerbit meminjamkan uang kepada konsumen, bukan mengambil dari rekening.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="acc-item">
+        <div class="acc-header" onclick="toggleAcc(this)">
+          <div class="acc-left">
+            <div class="acc-icon-wrap ci-teal" style="border-radius:10px;">🔧</div>
+            <span>Penyedia Jasa Perbankan</span>
+          </div>
+          <div class="acc-arrow">▼</div>
+        </div>
+        <div class="acc-body">
+          <div class="acc-body-inner">
+            <ul class="info-list">
+              <li>
+                <div class="bullet ci-blue" style="border-radius:8px;">📤</div>
+                <div><strong>Transfer (Pengiriman Uang)</strong> — bisa dilakukan via kantor cabang, ATM, Internet Banking, atau Mobile Banking.</div>
+              </li>
+              <li>
+                <div class="bullet ci-gold" style="border-radius:8px;">⚡</div>
+                <div><strong>Jasa Transaksi Pembiayaan</strong> — pembayaran tagihan listrik, uang sekolah/kuliah, dan tagihan lainnya.</div>
+              </li>
+              <li>
+                <div class="bullet ci-green" style="border-radius:8px;">🛒</div>
+                <div><strong>Jasa Transaksi Pembelian</strong> — pembelian pulsa telepon, tiket kereta api, dan lain-lain.</div>
+              </li>
+              <li>
+                <div class="bullet ci-orange" style="border-radius:8px;">🔐</div>
+                <div><strong>Safe Deposit Box</strong> — layanan penyimpanan barang berharga di brankas bank yang aman.</div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: BPR — BANK PERKREDITAN RAKYAT  (id="section-bpr")
+       Uses .two-col to contrast allowed vs. prohibited activities
+       with coloured .info-list rows (green = allowed, red = not).
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-bpr" class="section">
+    <div class="section-header">
+      <div class="section-eyebrow">🏘️ BPR</div>
+      <h2 class="section-title">Bank Perkreditan <span>Rakyat</span></h2>
+      <p class="section-desc">Bank yang menerima simpanan hanya dalam bentuk deposito berjangka, tabungan, dan/atau bentuk lainnya yang dipersamakan.</p>
+    </div>
+
+    <div class="two-col" style="margin-bottom:28px;">
+      <div>
+        <h3 style="font-size:15px;font-weight:800;color:var(--green);margin-bottom:14px;">✅ Kegiatan yang BOLEH dijalankan BPR</h3>
+        <ul class="info-list">
+          <li>
+            <div class="bullet ci-green" style="border-radius:8px;">✔</div>
+            <div>Menghimpun dana dari masyarakat dalam bentuk <strong>tabungan</strong> dan <strong>deposito</strong></div>
+          </li>
+          <li>
+            <div class="bullet ci-green" style="border-radius:8px;">✔</div>
+            <div>Menyalurkan dana kepada masyarakat dalam bentuk <strong>pinjaman (kredit)</strong></div>
+          </li>
+          <li>
+            <div class="bullet ci-green" style="border-radius:8px;">✔</div>
+            <div>Menyediakan pembiayaan bagi nasabah berdasarkan <strong>prinsip bagi hasil</strong></div>
+          </li>
+          <li>
+            <div class="bullet ci-green" style="border-radius:8px;">✔</div>
+            <div>Menempatkan dana dalam bentuk SBI, deposito, dan/atau tabungan pada <strong>bank lain</strong></div>
+          </li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="font-size:15px;font-weight:800;color:var(--red);margin-bottom:14px;">❌ Bentuk Usaha yang TIDAK BOLEH dijalankan BPR</h3>
+        <ul class="info-list">
+          <li>
+            <div class="bullet ci-red" style="border-radius:8px;">✗</div>
+            <div>Menerima simpanan dalam bentuk <strong>giro</strong></div>
+          </li>
+          <li>
+            <div class="bullet ci-red" style="border-radius:8px;">✗</div>
+            <div>Melakukan kegiatan <strong>penyertaan modal</strong></div>
+          </li>
+          <li>
+            <div class="bullet ci-red" style="border-radius:8px;">✗</div>
+            <div>Bergerak di bidang <strong>asuransi</strong></div>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="fact-box success">
+      <div class="fb-icon">🏘️</div>
+      <div><strong>Peran BPR:</strong> BPR fokus melayani masyarakat pedesaan dan usaha kecil yang belum terjangkau oleh bank umum besar. BPR berperan penting dalam inklusi keuangan Indonesia.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: BANK SYARIAH vs KONVENSIONAL  (id="section-bank-syariah")
+       Core component: .comparison-table with 7 comparison rows.
+       Column header classes: .syariah (green) and .konvensional (blue).
+       Wrap the table in <div style="overflow-x:auto"> to handle
+       narrow screens without breaking layout.
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-bank-syariah" class="section">
+    <div class="section-header">
+      <div class="section-eyebrow">⚖️ Prinsip Operasional</div>
+      <h2 class="section-title">Bank Syariah vs <span>Bank Konvensional</span></h2>
+      <p class="section-desc">Dua jenis bank berdasarkan prinsip operasionalnya — yang membedakannya adalah sistem imbalan, investasi, dan hubungan dengan nasabah.</p>
+    </div>
+
+    <div style="overflow-x:auto; margin-bottom:28px;">
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Aspek Perbandingan</th>
+            <th class="syariah">🕌 Bank Syariah</th>
+            <th class="konvensional">🏦 Bank Konvensional</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Landasan Hukum</td>
+            <td class="syariah">Hukum Islam (Al-Quran, Hadis)</td>
+            <td class="konvensional">Hukum positif Indonesia</td>
+          </tr>
+          <tr>
+            <td>Jenis Investasi</td>
+            <td class="syariah"><span class="check">✓</span> Hanya usaha yang <strong>halal</strong></td>
+            <td class="konvensional"><span class="cross">−</span> Halal <em>maupun</em> non-halal</td>
+          </tr>
+          <tr>
+            <td>Sistem Imbalan</td>
+            <td class="syariah">Bagi hasil, margin keuntungan, fee</td>
+            <td class="konvensional">Sistem bunga (interest)</td>
+          </tr>
+          <tr>
+            <td>Besaran Imbalan</td>
+            <td class="syariah">Berubah-ubah sesuai kinerja usaha</td>
+            <td class="konvensional">Bunga tetap</td>
+          </tr>
+          <tr>
+            <td>Orientasi</td>
+            <td class="syariah">Profit <em>dan</em> falah (kebahagiaan dunia-akhirat)</td>
+            <td class="konvensional">Profit (kebahagiaan dunia)</td>
+          </tr>
+          <tr>
+            <td>Hubungan Bank–Nasabah</td>
+            <td class="syariah">Pola <strong>Kemitraan</strong></td>
+            <td class="konvensional">Pola <strong>Debitur–Kreditur</strong></td>
+          </tr>
+          <tr>
+            <td>Pengawasan Khusus</td>
+            <td class="syariah"><span class="check">✓</span> Ada Dewan Pengawas Syariah (DPS)</td>
+            <td class="konvensional"><span class="cross">−</span> Tidak ada pengawasan syariah</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="two-col">
+      <div class="fact-box success">
+        <div class="fb-icon">🕌</div>
+        <div><strong>Bank Syariah Terbesar:</strong> Bank Syariah Indonesia (BSI) terbentuk dari merger tiga bank syariah BUMN yaitu BNI Syariah, BRI Syariah, dan Mandiri Syariah.</div>
+      </div>
+      <div class="fact-box info">
+        <div class="fb-icon">⚖️</div>
+        <div><strong><a class="gloss-link" onclick="goToGloss('akad')">Akad</a> Syariah:</strong> Beberapa akad umum adalah <a class="gloss-link" onclick="goToGloss('mudharabah')">Mudharabah</a> (<a class="gloss-link" onclick="goToGloss('bagi-hasil')">bagi hasil</a>), <a class="gloss-link" onclick="goToGloss('murabahah')">Murabahah</a> (jual beli), dan <a class="gloss-link" onclick="goToGloss('ijarah')">Ijarah</a> (sewa). Setiap transaksi harus bebas dari <a class="gloss-link" onclick="goToGloss('riba')">riba</a>, <a class="gloss-link" onclick="goToGloss('gharar')">gharar</a>, dan <a class="gloss-link" onclick="goToGloss('maysir')">maysir</a>.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: INDUSTRI KEUANGAN NON BANK  (id="section-iknb")
+       Seven IKNB types presented as accordion items:
+         1. Pasar Modal   2. Koperasi    3. Asuransi
+         4. Pegadaian     5. Leasing     6. Fintech   7. Dana Pensiun
+       To add a new IKNB type: duplicate an .acc-item block,
+       update the icon, label, tag, and body content.
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-iknb" class="section">
+    <div class="section-header">
+      <div class="section-eyebrow">📈 IKNB</div>
+      <h2 class="section-title">Industri Keuangan <span>Non Bank</span></h2>
+      <p class="section-desc">Lembaga yang menyelenggarakan aktivitas keuangan berupa penghimpunan dana dari masyarakat lalu menyalurkannya untuk investasi serta menerbitkan surat berharga.</p>
+    </div>
+
+    <div class="accordion">
+      <div class="acc-item open">
+        <div class="acc-header" onclick="toggleAcc(this)">
+          <div class="acc-left">
+            <div class="acc-icon-wrap ci-blue" style="border-radius:10px;">📊</div>
+            <span>Pasar Modal</span>
+          </div>
+          <span class="tag tag-blue">Investasi Jangka Panjang</span>
+          <div class="acc-arrow">▼</div>
+        </div>
+        <div class="acc-body">
+          <div class="acc-body-inner">
+            <p style="margin-bottom:14px;">Tempat bertemunya pihak yang <strong>membutuhkan dana</strong> (<a class="gloss-link" onclick="goToGloss('emiten')">emiten</a>/perusahaan) dan pihak yang <strong>memiliki dana</strong> (<a class="gloss-link" onclick="goToGloss('investor')">investor</a>) melalui perdagangan instrumen keuangan jangka panjang.</p>
+            <div class="cards-grid cols-2">
+              <div class="card" style="box-shadow:none;border-color:var(--blue);">
+                <div class="card-icon ci-blue" style="width:36px;height:36px;font-size:16px;">📋</div>
+                <h3><a class="gloss-link" onclick="goToGloss('saham')">Saham</a></h3>
+                <p>Surat bukti kepemilikan perusahaan. Investor mendapat <a class="gloss-link" onclick="goToGloss('dividen')">dividen</a> dan <a class="gloss-link" onclick="goToGloss('capital-gain')">capital gain</a>.</p>
+              </div>
+              <div class="card" style="box-shadow:none;border-color:var(--gold);">
+                <div class="card-icon ci-gold" style="width:36px;height:36px;font-size:16px;">📜</div>
+                <h3><a class="gloss-link" onclick="goToGloss('obligasi')">Obligasi</a></h3>
+                <p>Surat utang jangka panjang. Penerbit berjanji membayar <a class="gloss-link" onclick="goToGloss('bunga')">bunga</a> dan pokok pada jatuh tempo.</p>
+              </div>
+            </div>
+            <div class="fact-box info" style="margin-top:14px;">
+              <div class="fb-icon">🏢</div>
+              <div>Pasar modal Indonesia diselenggarakan oleh <strong><a class="gloss-link" onclick="goToGloss('bei')">Bursa Efek Indonesia (BEI / IDX)</a></strong> yang berlokasi di Jakarta.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="acc-item">
+        <div class="acc-header" onclick="toggleAcc(this)">
+          <div class="acc-left">
+            <div class="acc-icon-wrap ci-green" style="border-radius:10px;">🤝</div>
+            <span>Koperasi</span>
+          </div>
+          <span class="tag tag-green">UU No. 25/1992</span>
+          <div class="acc-arrow">▼</div>
+        </div>
+        <div class="acc-body">
+          <div class="acc-body-inner">
+            <p style="margin-bottom:14px;">Badan usaha atau perkumpulan otonom yang dimiliki dan dikelola oleh anggota secara sukarela untuk meningkatkan kesejahteraan bersama berdasarkan asas kekeluargaan.</p>
+            <ul class="info-list">
+              <li><div class="bullet ci-green" style="border-radius:8px;">🗳️</div><div>Prinsip <strong>ekonomi demokratis</strong> — satu anggota satu suara (OSOV: One Share One Vote)</div></li>
+              <li><div class="bullet ci-green" style="border-radius:8px;">🎯</div><div>Tujuan utama <strong>memenuhi kebutuhan anggota</strong>, bukan semata-mata mencari keuntungan</div></li>
+              <li><div class="bullet ci-green" style="border-radius:8px;">💰</div><div>Keuntungan dibagikan sebagai <strong><a class="gloss-link" onclick="goToGloss('shu')">Sisa Hasil Usaha (SHU)</a></strong> kepada anggota</div></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="acc-item">
+        <div class="acc-header" onclick="toggleAcc(this)">
+          <div class="acc-left">
+            <div class="acc-icon-wrap ci-orange" style="border-radius:10px;">🛡️</div>
+            <span>Perusahaan Asuransi</span>
+          </div>
+          <span class="tag tag-orange">Manajemen Risiko</span>
+          <div class="acc-arrow">▼</div>
+        </div>
+        <div class="acc-body">
+          <div class="acc-body-inner">
+            <p style="margin-bottom:14px;">Perjanjian kontrak antara <strong>nasabah (tertanggung)</strong> dan <strong>perusahaan asuransi (penanggung)</strong>, di mana nasabah membayar <a class="gloss-link" onclick="goToGloss('premi')">premi</a> untuk mendapatkan perlindungan finansial atas risiko kerugian tak terduga.</p>
+            <div class="cards-grid cols-3">
+              <div class="card" style="box-shadow:none;border-color:var(--orange);">
+                <div class="card-icon ci-orange" style="width:36px;height:36px;font-size:16px;">❤️</div>
+                <h3>Asuransi Jiwa</h3>
+                <p>Melindungi risiko kematian dan memberikan santunan kepada ahli waris.</p>
+              </div>
+              <div class="card" style="box-shadow:none;border-color:var(--blue);">
+                <div class="card-icon ci-blue" style="width:36px;height:36px;font-size:16px;">🏥</div>
+                <h3>Asuransi Kesehatan</h3>
+                <p>Menanggung biaya pengobatan dan rawat inap akibat sakit atau kecelakaan.</p>
+              </div>
+              <div class="card" style="box-shadow:none;border-color:var(--green);">
+                <div class="card-icon ci-green" style="width:36px;height:36px;font-size:16px;">🚗</div>
+                <h3>Asuransi Umum</h3>
+                <p>Melindungi aset seperti kendaraan, properti, dan bisnis dari berbagai risiko.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="acc-item">
+        <div class="acc-header" onclick="toggleAcc(this)">
+          <div class="acc-left">
+            <div class="acc-icon-wrap ci-gold" style="border-radius:10px;">💍</div>
+            <span>Pegadaian</span>
+          </div>
+          <span class="tag tag-gold">BUMN / Anak Usaha BRI</span>
+          <div class="acc-arrow">▼</div>
+        </div>
+        <div class="acc-body">
+          <div class="acc-body-inner">
+            <p>Lembaga keuangan non-bank milik negara yang menyediakan <strong>solusi pinjaman cepat</strong> dengan jaminan barang bergerak atau tidak bergerak, serta layanan investasi emas. Melayani kebutuhan dana tunai masyarakat menengah ke bawah dengan prinsip gadai yang aman, terpercaya, dan berizin.</p>
+            <div class="fact-box warn" style="margin-top:14px;">
+              <div class="fb-icon">🪙</div>
+              <div>Pegadaian juga menyediakan produk <strong>tabungan emas</strong> yang memungkinkan masyarakat berinvestasi emas mulai dari nominal kecil.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="acc-item">
+        <div class="acc-header" onclick="toggleAcc(this)">
+          <div class="acc-left">
+            <div class="acc-icon-wrap ci-teal" style="border-radius:10px;">🚙</div>
+            <span>Leasing (Sewa Guna Usaha)</span>
+          </div>
+          <span class="tag tag-blue">Pembiayaan Aset</span>
+          <div class="acc-arrow">▼</div>
+        </div>
+        <div class="acc-body">
+          <div class="acc-body-inner">
+            <p style="margin-bottom:14px;">Pembiayaan barang modal atau aset oleh perusahaan pembiayaan <strong>(<a class="gloss-link" onclick="goToGloss('lessor')">lessor</a>)</strong> kepada pengguna <strong>(<a class="gloss-link" onclick="goToGloss('lessee')">lessee</a>)</strong> dengan cicilan berkala. Memungkinkan penggunaan barang tanpa modal besar di awal.</p>
+            <div class="timeline">
+              <div class="tl-item">
+                <div class="tl-dot" style="background:var(--blue);"></div>
+                <div class="tl-label">Awal Kontrak</div>
+                <div class="tl-title">Perjanjian Leasing</div>
+                <div class="tl-desc">Lessor membeli aset dan menyerahkan penggunaan kepada lessee dengan cicilan tetap per bulan.</div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot" style="background:var(--gold);"></div>
+                <div class="tl-label">Selama Kontrak</div>
+                <div class="tl-title">Pembayaran Cicilan</div>
+                <div class="tl-desc">Lessee membayar cicilan berkala kepada lessor sesuai perjanjian.</div>
+              </div>
+              <div class="tl-item">
+                <div class="tl-dot" style="background:var(--green);"></div>
+                <div class="tl-label">Akhir Kontrak</div>
+                <div class="tl-title">Tiga Opsi Lessee</div>
+                <div class="tl-desc">Membeli aset dengan harga sisa, memperpanjang kontrak leasing, atau mengembalikan aset kepada lessor.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="acc-item">
+        <div class="acc-header" onclick="toggleAcc(this)">
+          <div class="acc-left">
+            <div class="acc-icon-wrap ci-purple" style="border-radius:10px;">📱</div>
+            <span>Financial Technology (Fintech)</span>
+          </div>
+          <span class="tag tag-purple">Inovasi Digital</span>
+          <div class="acc-arrow">▼</div>
+        </div>
+        <div class="acc-body">
+          <div class="acc-body-inner">
+            <p style="margin-bottom:16px;">Inovasi di industri jasa keuangan yang memanfaatkan teknologi digital untuk membuat layanan keuangan lebih <strong>praktis, efisien, dan inklusif</strong>.</p>
+            <div class="fintech-grid">
+              <div class="fintech-card">
+                <div class="fc-tag"><span class="tag tag-blue">Pembayaran</span></div>
+                <div class="fc-title">💳 Dompet Digital</div>
+                <div class="fc-desc">Aplikasi pembayaran digital yang memudahkan transaksi tanpa uang tunai.</div>
+                <div class="fc-examples">
+                  <span>GoPay</span><span>OVO</span><span>DANA</span><span>Flip</span>
+                </div>
+              </div>
+              <div class="fintech-card">
+                <div class="fc-tag"><span class="tag tag-orange">Pinjaman</span></div>
+                <div class="fc-title">💰 <a class="gloss-link" onclick="goToGloss('p2p-lending')">Pinjaman Online (P2P Lending)</a></div>
+                <div class="fc-desc">Menghubungkan peminjam langsung dengan pemberi pinjaman via platform digital.</div>
+                <div class="fc-examples">
+                  <span>Modalku</span><span>Amartha</span><span>Kredit Pintar</span><span>JULO</span>
+                </div>
+              </div>
+              <div class="fintech-card">
+                <div class="fc-tag"><span class="tag tag-green">Investasi</span></div>
+                <div class="fc-title">📈 Manajemen Investasi</div>
+                <div class="fc-desc">Platform digital untuk investasi <a class="gloss-link" onclick="goToGloss('reksa-dana')">reksa dana</a>, saham, dan aset lainnya dengan mudah.</div>
+                <div class="fc-examples">
+                  <span>Bibit</span><span>Cermati</span><span>CekAja</span>
+                </div>
+              </div>
+              <div class="fintech-card">
+                <div class="fc-tag"><span class="tag tag-purple">Donasi</span></div>
+                <div class="fc-title">🤲 <a class="gloss-link" onclick="goToGloss('crowdfunding')">Crowdfunding</a></div>
+                <div class="fc-desc">Platform patungan dana secara digital untuk berbagai keperluan sosial dan bisnis.</div>
+                <div class="fc-examples">
+                  <span>Kitabisa</span><span>Wujudkan</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="acc-item">
+        <div class="acc-header" onclick="toggleAcc(this)">
+          <div class="acc-left">
+            <div class="acc-icon-wrap ci-red" style="border-radius:10px;">👴</div>
+            <span>Dana Pensiun</span>
+          </div>
+          <span class="tag tag-red">Jaminan Hari Tua</span>
+          <div class="acc-arrow">▼</div>
+        </div>
+        <div class="acc-body">
+          <div class="acc-body-inner">
+            <p>Badan hukum yang mengelola dan menjalankan program yang <strong>menjanjikan manfaat pensiun</strong>. Dana ini dikumpulkan dari iuran karyawan dan pemberi kerja selama masa aktif bekerja, kemudian dibayarkan saat peserta memasuki usia pensiun.</p>
+            <div class="fact-box info" style="margin-top:14px;">
+              <div class="fb-icon">📋</div>
+              <div>Contoh di Indonesia: <strong><a class="gloss-link" onclick="goToGloss('bpjs-ketenagakerjaan')">BPJS Ketenagakerjaan</a></strong> (<a class="gloss-link" onclick="goToGloss('jht')">Jaminan Hari Tua/JHT</a>), dan dana pensiun perusahaan (<a class="gloss-link" onclick="goToGloss('dplk')">DPLK - Dana Pensiun Lembaga Keuangan</a>).</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: OJK — OTORITAS JASA KEUANGAN  (id="section-ojk")
+       Three dark .ojk-pillar cards highlight OJK's core functions,
+       followed by an .info-list for goals and a .cards-grid for
+       the scope of OJK's regulatory oversight.
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-ojk" class="section">
+    <div class="section-header">
+      <div class="section-eyebrow">🛡️ Regulator</div>
+      <h2 class="section-title">Otoritas Jasa <span>Keuangan (OJK)</span></h2>
+      <p class="section-desc">Lembaga yang berfungsi menyelenggarakan sistem pengaturan dan pengawasan yang terintegrasi terhadap keseluruhan kegiatan di dalam sektor jasa keuangan.</p>
+    </div>
+
+    <div class="ojk-pillars" style="margin-bottom:28px;">
+      <div class="ojk-pillar">
+        <div class="op-icon">📐</div>
+        <div class="op-title">Pengaturan</div>
+        <div class="op-desc">Menetapkan aturan, kebijakan, dan kerangka hukum bagi seluruh pelaku jasa keuangan.</div>
+      </div>
+      <div class="ojk-pillar">
+        <div class="op-icon">🔍</div>
+        <div class="op-title">Pengawasan</div>
+        <div class="op-desc">Memantau dan memeriksa kepatuhan lembaga keuangan terhadap aturan yang berlaku.</div>
+      </div>
+      <div class="ojk-pillar">
+        <div class="op-icon">🛡️</div>
+        <div class="op-title">Perlindungan Konsumen</div>
+        <div class="op-desc">Melindungi kepentingan konsumen dan masyarakat dari praktik tidak adil di sektor keuangan.</div>
+      </div>
+    </div>
+
+    <h3 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:16px;">Tujuan OJK</h3>
+    <ul class="info-list" style="margin-bottom:24px;">
+      <li>
+        <div class="bullet ci-blue" style="border-radius:8px;">⚖️</div>
+        <div>Terselenggara secara <strong>teratur, adil, transparan, dan akuntabel</strong></div>
+      </li>
+      <li>
+        <div class="bullet ci-gold" style="border-radius:8px;">📈</div>
+        <div>Mampu mewujudkan sistem keuangan yang <strong>tumbuh secara berkelanjutan dan stabil</strong></div>
+      </li>
+      <li>
+        <div class="bullet ci-green" style="border-radius:8px;">👨‍👩‍👧</div>
+        <div>Mampu <strong>melindungi kepentingan konsumen dan masyarakat</strong></div>
+      </li>
+    </ul>
+
+    <h3 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:16px;">Ruang Lingkup Pengawasan OJK</h3>
+    <div class="cards-grid cols-2">
+      <div class="card accent-blue">
+        <div class="card-icon ci-blue">🏦</div>
+        <h3>Sektor Perbankan</h3>
+        <p>Mengawasi Bank Umum, BPR, Bank Syariah, dan seluruh kegiatan perbankan nasional.</p>
+      </div>
+      <div class="card accent-gold">
+        <div class="card-icon ci-gold">📊</div>
+        <h3>Pasar Modal & Derivatif</h3>
+        <p>Mengawasi Bursa Efek, reksa dana, dan instrumen keuangan derivatif termasuk Bursa Karbon.</p>
+      </div>
+      <div class="card accent-green">
+        <div class="card-icon ci-green">🛡️</div>
+        <h3>Asuransi & Dana Pensiun</h3>
+        <p>Mengatur dan mengawasi perusahaan asuransi, reasuransi, penjaminan, dan dana pensiun.</p>
+      </div>
+      <div class="card accent-purple">
+        <div class="card-icon ci-purple">📱</div>
+        <h3>Fintech & Aset Digital</h3>
+        <p>Mengawasi teknologi keuangan, aset keuangan digital, dan aset kripto di Indonesia.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: LPS — LEMBAGA PENJAMIN SIMPANAN  (id="section-lps")
+       A .feature-card covers LPS's historical background (1998 crisis),
+       followed by a .cards-grid.cols-2 for its five functions,
+       and a .fact-box.success for the current guarantee limit.
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-lps" class="section">
+    <div class="section-header">
+      <div class="section-eyebrow">🔒 Penjamin</div>
+      <h2 class="section-title">Lembaga Penjamin <span>Simpanan (LPS)</span></h2>
+      <p class="section-desc">Lembaga yang menjamin simpanan nasabah perbankan dan turut aktif memelihara stabilitas sistem perbankan Indonesia.</p>
+    </div>
+
+    <div class="feature-card" data-bg-text="LPS" style="margin-bottom:28px;">
+      <div class="badge">📜 Latar Belakang</div>
+      <h2>Lahir dari Krisis 1998</h2>
+      <p>LPS dibentuk sebagai respons atas <strong style="color:var(--gold)">krisis moneter 1998</strong> yang menyebabkan dilikuidasinya 16 bank dan menurunnya kepercayaan masyarakat pada sistem perbankan Indonesia. Pemerintah memberikan <a class="gloss-link" onclick="goToGloss('blanket-guarantee')">blanket guarantee</a> (jaminan penuh) melalui Keppres No. 26 dan 193 Tahun 1998.</p>
+    </div>
+
+    <h3 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:16px;">Lima Fungsi LPS</h3>
+    <div class="cards-grid cols-2" style="margin-bottom:24px;">
+      <div class="card accent-blue">
+        <div class="card-icon ci-blue">💰</div>
+        <h3>1. Menjamin Simpanan Nasabah</h3>
+        <p>Menjamin simpanan nasabah penyimpan di bank yang dicabut izin usahanya — hingga batas maksimum tertentu.</p>
+      </div>
+      <div class="card accent-orange">
+        <div class="card-icon ci-orange">📋</div>
+        <h3>2. Menjamin Polis Asuransi</h3>
+        <p>Memberikan perlindungan kepada nasabah pemegang polis asuransi yang perusahaannya bermasalah.</p>
+      </div>
+      <div class="card accent-green">
+        <div class="card-icon ci-green">⚖️</div>
+        <h3>3. Memelihara Stabilitas Perbankan</h3>
+        <p>Turut aktif dalam menjaga stabilitas sistem perbankan sesuai dengan kewenangannya.</p>
+      </div>
+      <div class="card accent-gold">
+        <div class="card-icon ci-gold">🏦</div>
+        <h3>4. <a class="gloss-link" onclick="goToGloss('resolusi-bank')">Resolusi Bank</a></h3>
+        <p>Melakukan penanganan bank gagal melalui berbagai skema resolusi yang terstruktur.</p>
+      </div>
+    </div>
+
+    <div class="fact-box success">
+      <div class="fb-icon">🔒</div>
+      <div><strong>Berapa yang dijamin LPS?</strong> Saat ini LPS menjamin simpanan nasabah bank hingga <strong>Rp 2 miliar per nasabah per bank</strong>. Simpanan di atas nilai ini tidak mendapat jaminan LPS.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: QUIZ  (id="section-quiz")
+       Two child elements toggle between each other via JS:
+         #quizCard   — shown during the quiz (question + options)
+         #quizResult — shown after all questions are answered
+       All quiz rendering is done dynamically in renderQuestion().
+       See the <script> block for data structure and logic.
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-quiz" class="section">
+    <div class="section-header">
+      <div class="section-eyebrow">🧠 Kuis</div>
+      <h2 class="section-title">Uji <span>Pemahamanmu!</span></h2>
+      <p class="section-desc">Jawab 10 pertanyaan berikut untuk menguji seberapa jauh kamu memahami materi Bank dan IKNB.</p>
+    </div>
+
+    <div class="quiz-card" id="quizCard">
+      <div class="quiz-progress"><div class="quiz-progress-fill" id="quizProgressFill" style="width:10%"></div></div>
+      <div class="quiz-header">
+        <div class="quiz-qnum" id="quizQNum">Soal 1 dari 10</div>
+        <div class="quiz-score-badge">Skor: <span id="quizScore">0</span></div>
+      </div>
+      <div class="quiz-question" id="quizQuestion"></div>
+      <div class="quiz-options" id="quizOptions"></div>
+      <div class="quiz-feedback" id="quizFeedback"></div>
+      <div class="quiz-actions">
+        <div id="quizHint" style="font-size:12px;color:var(--muted);"></div>
+        <button class="btn btn-primary" id="quizNextBtn" onclick="nextQuestion()" style="display:none;">Soal Berikutnya →</button>
+      </div>
+    </div>
+
+    <div id="quizResult" style="display:none;">
+      <div class="quiz-card">
+        <div class="quiz-result">
+          <div class="result-emoji" id="resultEmoji">🎉</div>
+          <div class="result-score" id="resultScore">0</div>
+          <div class="result-label">dari 10 soal benar</div>
+          <div class="result-msg" id="resultMsg"></div>
+          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+            <button class="btn btn-gold" onclick="restartQuiz()">🔄 Ulangi Kuis</button>
+            <button class="btn btn-primary" onclick="showSection('flashcard')">🃏 Review Flashcard</button>
+            <button class="btn btn-secondary" onclick="showSection('jenis-bank')">📚 Pelajari Lagi</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: FLASHCARD  (id="section-flashcard")
+       Interactive flip-card review deck covering all 9 topics.
+
+       STRUCTURE:
+         .fc-shell          — centred max-width wrapper
+         .fc-topbar         — category filter pills + mastery widget
+         .fc-stage          — 3D perspective container
+         .fc-card           — clickable card frame
+           .fc-inner        — rotates on .flipped class (CSS 3D flip)
+             .fc-front      — term/concept face (dark navy)
+             .fc-back       — definition/example face (white)
+         .fc-controls       — Prev / counter / Next / Shuffle / Star
+         .fc-dots           — clickable dot navigation strip
+         .fc-keyboard-hints — keyboard shortcut legend
+
+       All card data lives in `flashcardData` in the <script> block.
+       To add a card: push a new object with {term, definition,
+       example, category} to the array.
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-flashcard" class="section">
+    <div class="section-header">
+      <div class="section-eyebrow">🃏 Flashcard</div>
+      <h2 class="section-title">Review <span>Materi</span></h2>
+      <p class="section-desc">Klik kartu untuk membaliknya dan melihat penjelasan. Tandai kartu yang sudah kamu kuasai dengan ⭐ untuk melacak kemajuan belajarmu.</p>
+    </div>
+
+    <div class="fc-shell">
+
+      <!-- Category filter + mastery tracker -->
+      <div class="fc-topbar">
+        <div class="fc-category-pills" id="fcPills">
+          <!-- Pills are rendered dynamically by JS (renderPills) -->
+        </div>
+        <div class="fc-mastery-wrap">
+          <div class="fc-mastery-label">Dikuasai</div>
+          <div class="fc-mastery-bar-bg">
+            <div class="fc-mastery-bar-fill" id="fcMasteryFill"></div>
+          </div>
+          <div class="fc-mastery-count" id="fcMasteryCount">0 / 0</div>
+        </div>
+      </div>
+
+      <!-- 3D flip card stage — clicking anywhere on the card flips it -->
+      <div class="fc-stage" onclick="flipCard()">
+        <div class="fc-card">
+          <div class="fc-inner" id="fcInner">
+
+            <!-- FRONT FACE: term / concept -->
+            <div class="fc-front">
+              <div>
+                <div class="fc-front-category" id="fcFrontCategory">—</div>
+                <div class="fc-front-term" id="fcFrontTerm">Memuat...</div>
+              </div>
+              <div class="fc-front-hint">Klik untuk melihat penjelasan</div>
+            </div>
+
+            <!-- BACK FACE: definition + example -->
+            <div class="fc-back">
+              <div class="fc-mastered-stamp">✓</div>
+              <div>
+                <div class="fc-back-label">📖 Definisi</div>
+                <div class="fc-back-def" id="fcBackDef">—</div>
+              </div>
+              <div class="fc-back-example" id="fcBackExample">
+                <span class="ex-label">💡 Contoh / Catatan</span>
+                <span id="fcBackExampleText">—</span>
+              </div>
+            </div>
+
+          </div><!-- /fc-inner -->
+        </div><!-- /fc-card -->
+      </div><!-- /fc-stage -->
+
+      <!-- Navigation controls -->
+      <div class="fc-controls">
+        <button class="fc-btn fc-btn-nav" id="fcPrevBtn" onclick="fcNav(-1)" title="Kartu sebelumnya (←)">←</button>
+
+        <div class="fc-counter">
+          <div id="fcCounter">1 / 24</div>
+          <span id="fcCounterSub">kartu</span>
+        </div>
+
+        <button class="fc-btn fc-btn-nav" id="fcNextBtn" onclick="fcNav(1)" title="Kartu berikutnya (→)">→</button>
+
+        <button class="fc-btn" onclick="fcShuffle()" title="Acak urutan kartu (S)">🔀 Acak</button>
+
+        <button class="fc-btn fc-btn-star" id="fcStarBtn" onclick="fcToggleMastered()" title="Tandai dikuasai">☆</button>
+      </div>
+
+      <!-- Dot strip — one dot per card in the active filtered deck -->
+      <div class="fc-dots" id="fcDots"></div>
+
+      <!-- Keyboard shortcut guide (hidden on mobile) -->
+      <div class="fc-keyboard-hints">
+        <div class="fc-key-hint"><kbd class="fc-key">←</kbd> Sebelumnya</div>
+        <div class="fc-key-hint"><kbd class="fc-key">→</kbd> Berikutnya</div>
+        <div class="fc-key-hint"><kbd class="fc-key">Space</kbd> Balik kartu</div>
+        <div class="fc-key-hint"><kbd class="fc-key">S</kbd> Acak</div>
+      </div>
+
+    </div><!-- /fc-shell -->
+  </div><!-- /section-flashcard -->
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: PETA KONSEP  (id="section-peta-konsep")
+       Visual concept map of the entire module.
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-peta-konsep" class="section">
+    <div class="section-header">
+      <div class="section-eyebrow">🗺️ Peta Konsep</div>
+      <h2 class="section-title">Peta <span>Konsep</span></h2>
+      <p class="section-desc">Gambaran menyeluruh hubungan antar konsep dalam materi Bank dan Industri Keuangan Non Bank. Klik setiap node untuk menuju materi terkait.</p>
+    </div>
+
+    <div class="peta-container">
+      <div class="peta-svg-wrap" id="petaWrap">
+        <!-- SVG connector lines drawn by JS -->
+        <svg class="peta-svg" id="petaSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+
+        <div class="peta-grid">
+
+          <!-- LEFT COLUMN: Bank Sentral, Bank Umum, BPR -->
+          <div class="peta-col-left">
+
+            <div class="peta-branch-wrap" id="pw-sentral">
+              <div class="peta-branch pb-sentral" onclick="showSection('bank-sentral')">
+                <div class="pb-icon">🏛️</div>
+                <div class="pb-title">Bank Sentral</div>
+                <div class="pb-sub">Bank Indonesia (BI)</div>
+              </div>
+              <div class="peta-leaves">
+                <div class="peta-leaf" onclick="showSection('bank-sentral')">Kebijakan Moneter</div>
+                <div class="peta-leaf" onclick="showSection('bank-sentral')">Sistem Pembayaran</div>
+                <div class="peta-leaf" onclick="showSection('bank-sentral')">Pengedaran Uang</div>
+              </div>
+            </div>
+
+            <div class="peta-branch-wrap" id="pw-umum">
+              <div class="peta-branch pb-umum" onclick="showSection('bank-umum')">
+                <div class="pb-icon">💳</div>
+                <div class="pb-title">Bank Umum</div>
+                <div class="pb-sub">Komersial</div>
+              </div>
+              <div class="peta-leaves">
+                <div class="peta-leaf" onclick="showSection('bank-umum')">Tabungan / Deposito / Giro</div>
+                <div class="peta-leaf" onclick="showSection('bank-umum')">KPR / Kredit Modal Kerja</div>
+                <div class="peta-leaf" onclick="showSection('bank-umum')">Jasa: Transfer, RTGS</div>
+              </div>
+            </div>
+
+            <div class="peta-branch-wrap" id="pw-bpr">
+              <div class="peta-branch pb-bpr" onclick="showSection('bpr')">
+                <div class="pb-icon">🏘️</div>
+                <div class="pb-title">BPR</div>
+                <div class="pb-sub">Bank Perkreditan Rakyat</div>
+              </div>
+              <div class="peta-leaves">
+                <div class="peta-leaf" onclick="showSection('bpr')">Tabungan &amp; Deposito ✓</div>
+                <div class="peta-leaf" onclick="showSection('bpr')">Tidak boleh Giro ✗</div>
+                <div class="peta-leaf" onclick="showSection('bpr')">Inklusi Keuangan</div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- CENTER COLUMN: Root node + Bank Syariah -->
+          <div class="peta-col-center">
+
+            <div class="peta-center" id="pw-root" onclick="showSection('home')" style="cursor:pointer;">
+              <div class="pc-icon">🏦</div>
+              <div class="pc-title">Sistem Keuangan<br>Indonesia</div>
+              <div class="pc-sub">Bank &amp; IKNB</div>
+            </div>
+
+            <div class="peta-branch-wrap" id="pw-syariah" style="align-items:center; width:auto;">
+              <div class="peta-branch pb-syariah" onclick="showSection('bank-syariah')" style="width:200px;">
+                <div class="pb-icon">⚖️</div>
+                <div class="pb-title">Bank Syariah</div>
+                <div class="pb-sub">Prinsip Islam · Bagi Hasil</div>
+              </div>
+              <div class="peta-leaves" style="align-items:center;">
+                <div class="peta-leaf-row">
+                  <div class="peta-leaf" onclick="showSection('bank-syariah')">Mudharabah</div>
+                  <div class="peta-leaf" onclick="showSection('bank-syariah')">Murabahah</div>
+                  <div class="peta-leaf" onclick="showSection('bank-syariah')">Ijarah</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- RIGHT COLUMN: IKNB, OJK, LPS -->
+          <div class="peta-col-right">
+
+            <div class="peta-branch-wrap" id="pw-iknb">
+              <div class="peta-branch pb-iknb" onclick="showSection('iknb')">
+                <div class="pb-icon">📈</div>
+                <div class="pb-title">IKNB</div>
+                <div class="pb-sub">Industri Keuangan Non Bank</div>
+              </div>
+              <div class="peta-leaves">
+                <div class="peta-leaf-row">
+                  <div class="peta-leaf" onclick="showSection('iknb')">Pasar Modal</div>
+                  <div class="peta-leaf" onclick="showSection('iknb')">Koperasi</div>
+                </div>
+                <div class="peta-leaf-row">
+                  <div class="peta-leaf" onclick="showSection('iknb')">Asuransi</div>
+                  <div class="peta-leaf" onclick="showSection('iknb')">Pegadaian</div>
+                </div>
+                <div class="peta-leaf-row">
+                  <div class="peta-leaf" onclick="showSection('iknb')">Leasing</div>
+                  <div class="peta-leaf" onclick="showSection('iknb')">Fintech</div>
+                  <div class="peta-leaf" onclick="showSection('iknb')">Dana Pensiun</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="peta-branch-wrap" id="pw-ojk">
+              <div class="peta-branch pb-ojk" onclick="showSection('ojk')">
+                <div class="pb-icon">🛡️</div>
+                <div class="pb-title">OJK</div>
+                <div class="pb-sub">Otoritas Jasa Keuangan</div>
+              </div>
+              <div class="peta-leaves">
+                <div class="peta-leaf" onclick="showSection('ojk')">Pengaturan</div>
+                <div class="peta-leaf" onclick="showSection('ojk')">Pengawasan</div>
+                <div class="peta-leaf" onclick="showSection('ojk')">Perlindungan Konsumen</div>
+              </div>
+            </div>
+
+            <div class="peta-branch-wrap" id="pw-lps">
+              <div class="peta-branch pb-lps" onclick="showSection('lps')">
+                <div class="pb-icon">🔒</div>
+                <div class="pb-title">LPS</div>
+                <div class="pb-sub">Lembaga Penjamin Simpanan</div>
+              </div>
+              <div class="peta-leaves">
+                <div class="peta-leaf" onclick="showSection('lps')">Jaminan Rp 2 Miliar</div>
+                <div class="peta-leaf" onclick="showSection('lps')">Resolusi Bank Gagal</div>
+                <div class="peta-leaf" onclick="showSection('lps')">Stabilitas Perbankan</div>
+              </div>
+            </div>
+
+          </div>
+        </div><!-- /peta-grid -->
+      </div><!-- /peta-svg-wrap -->
+    </div><!-- /peta-container -->
+
+    <div class="peta-legend">
+      <div class="peta-legend-item"><div class="peta-legend-dot" style="background:linear-gradient(135deg,#1B4FD8,#3B82F6)"></div> Jenis Bank</div>
+      <div class="peta-legend-item"><div class="peta-legend-dot" style="background:linear-gradient(135deg,var(--orange),var(--gold))"></div> IKNB</div>
+      <div class="peta-legend-item"><div class="peta-legend-dot" style="background:linear-gradient(135deg,var(--purple),#a78bfa)"></div> Regulator (OJK)</div>
+      <div class="peta-legend-item"><div class="peta-legend-dot" style="background:linear-gradient(135deg,var(--teal),var(--green))"></div> Penjamin (LPS)</div>
+      <div class="peta-legend-item"><div class="peta-legend-dot" style="background:var(--card);border:1.5px solid var(--border);"></div> Sub-konsep (klik untuk navigasi)</div>
+    </div>
+
+    <div class="fact-box info" style="margin-top:24px;">
+      <div class="fb-icon">💡</div>
+      <div><strong>Cara membaca Peta Konsep:</strong> Sistem Keuangan Indonesia (pusat) terbagi menjadi dua kelompok besar: <strong>Bank</strong> (kiri — Sentral, Umum, BPR, Syariah) dan <strong>IKNB</strong> (kanan). Keduanya diawasi oleh <strong>OJK</strong>, sedangkan simpanan nasabah dijamin oleh <strong>LPS</strong>. Klik setiap node untuk membuka materi terkait.</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION: GLOSARIUM  (id="section-glosarium")
+       Alphabetical glossary of key terms.
+       ══════════════════════════════════════════════════════════ -->
+  <div id="section-glosarium" class="section">
+    <div class="section-header">
+      <div class="section-eyebrow">📖 Referensi</div>
+      <h2 class="section-title">Glosarium <span>Istilah</span></h2>
+      <p class="section-desc">Kumpulan istilah penting dalam materi Bank dan Industri Keuangan Non Bank, disusun secara alfabetis untuk memudahkan pencarian.</p>
+    </div>
+
+    <div class="gloss-search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="gloss-search" id="glossSearch" type="text" placeholder="Cari istilah, misalnya: deposito, leasing, syariah..." oninput="filterGloss()" />
+    </div>
+
+    <div class="gloss-alpha-bar" id="glossAlphaBar">
+      <!-- Built by JS -->
+    </div>
+
+    <div id="glossEntries">
+      <!-- Built by JS -->
+    </div>
+    <div id="glossNoResults">😕 Tidak ada istilah yang cocok dengan pencarianmu.</div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+  /* ============================================================
+     JAVASCRIPT — NAVIGATION, ACCORDION & QUIZ
+     ============================================================
+
+     ── MODULE 1: NAVIGATION ──────────────────────────────────
+     showSection(id)
+       Switches the visible section by toggling .active on both
+       the matching .section div and the matching .nav-item link.
+       Also records the section as visited for the progress bar,
+       re-initialises the quiz if navigating to 'quiz', and
+       closes the mobile sidebar if it was open.
+
+     updateProgress()
+       Calculates what percentage of unique sections have been
+       visited (visitedSections Set size / total sections count),
+       then updates the sidebar progress bar fill width and label.
+
+     toggleSidebar() / closeSidebar()
+       Toggle or forcibly close the mobile sidebar by adding/
+       removing the .open class on #sidebar and .active on #overlay.
+
+     ── MODULE 2: ACCORDION ──────────────────────────────────
+     toggleAcc(headerEl)
+       Implements single-open accordion behaviour:
+       1. Determines if the clicked item is already open.
+       2. Closes ALL open items (removes .open from all .acc-item).
+       3. Re-opens the clicked item only if it was previously closed.
+       The CSS max-height transition on .acc-body provides the
+       slide-open animation (no JS animation needed).
+
+     ── MODULE 3: QUIZ ───────────────────────────────────────
+     quizData  — Array of question objects. Each object has:
+       q    {string}  — Question text
+       opts {Array}   — Four answer strings (A/B/C/D)
+       ans  {number}  — 0-based index of the correct option
+       exp  {string}  — Explanation shown after the user answers
+
+     State variables:
+       currentQ  — Index of the current question (0-based)
+       score     — Running count of correct answers
+       answered  — Boolean flag; prevents double-clicking an option
+
+     initQuiz()      — Resets state and shows the first question.
+     renderQuestion()— Builds the option buttons for currentQ.
+     selectAnswer(idx, el)
+                     — Handles an option click: locks further input,
+                       applies .correct/.wrong CSS classes, shows
+                       explanation feedback, and reveals the Next button.
+     nextQuestion()  — Advances currentQ or calls showResult().
+     showResult()    — Hides the quiz card, shows the result screen,
+                       picks an emoji + message based on score %, and
+                       updates the progress bar.
+     restartQuiz()   — Calls initQuiz() to start fresh.
+     ============================================================ */
+
+  /* ── MODULE 1: NAVIGATION ── */
+
+  /* Full list of section IDs — must match id="section-{id}" in HTML.
+     Add a new entry here whenever you add a new <div class="section"> page. */
+  const sections = ['home','tujuan','jenis-bank','bank-sentral','bank-umum','bpr','bank-syariah','iknb','ojk','lps','quiz','flashcard','peta-konsep','glosarium'];
+
+  /* Tracks which section IDs have been visited; used by updateProgress().
+     'home' is pre-populated because it is visible on load. */
+  let visitedSections = new Set(['home']);
+
+  /* Switch the active section and update the sidebar highlight */
+  function showSection(id) {
+    /* Hide all sections */
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    /* Remove active highlight from all nav links */
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+    /* Show the requested section */
+    const sec = document.getElementById('section-' + id);
+    if (sec) sec.classList.add('active');
+
+    /* Highlight the matching nav link by matching its onclick attribute string */
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(n => {
+      if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + id + "'")) {
+        n.classList.add('active');
+      }
+    });
+
+    visitedSections.add(id);  /* mark as visited for progress tracking */
+    updateProgress();
+
+    if (id === 'quiz') initQuiz(); /* always reset quiz to Q1 when navigating to it */
+    closeSidebar();               /* close mobile sidebar if open */
+    window.scrollTo(0, 0);        /* scroll to top so new section starts at top */
+  }
+
+  /* Recalculate and render the progress bar based on visited sections */
+  function updateProgress() {
+    const total = sections.length;
+    const visited = visitedSections.size;
+    const pct = Math.round((visited / total) * 100);
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressText').textContent = pct + '%';
+  }
+
+  /* Show/hide mobile sidebar — toggles .open on sidebar and .active on overlay */
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('overlay').classList.toggle('active');
+  }
+  /* Force-close mobile sidebar (called after nav, on overlay click, etc.) */
+  function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('overlay').classList.remove('active');
+  }
+
+  /* ── MODULE 2: ACCORDION ──
+     FIX (mobile): instead of relying on the CSS max-height value (which was
+     hardcoded to 600px and clipped tall content on narrow screens), we now
+     measure each .acc-body's actual scrollHeight and set it as an inline style.
+     This guarantees every accordion opens to exactly its real content height
+     regardless of screen width, nested card count, or font scaling.
+     Closing works by resetting the inline style back to '0'.               */
+
+  /* Single-open accordion — only one .acc-item can have .open at a time */
+  function toggleAcc(header) {
+    const item   = header.parentElement; /* the .acc-item wrapper */
+    const isOpen = item.classList.contains('open');
+
+    /* Close every currently open item — reset their inline maxHeight to 0 */
+    document.querySelectorAll('.acc-item.open').forEach(i => {
+      i.classList.remove('open');
+      i.querySelector('.acc-body').style.maxHeight = '0';
+    });
+
+    /* If the clicked item was closed, open it with its real content height */
+    if (!isOpen) {
+      item.classList.add('open');
+      const body = item.querySelector('.acc-body');
+      /* scrollHeight measures the full laid-out content height,
+         ignoring any CSS overflow or max-height constraint.
+         Adding 32px accounts for the acc-body-inner top/bottom padding
+         so the bottom of the last child is never clipped.               */
+      body.style.maxHeight = (body.scrollHeight + 32) + 'px';
+    }
+  }
+
+  /* ── MODULE 3: QUIZ DATA ──
+     To add a question: push a new object to this array.
+     To change an answer: update the `ans` index (0 = first option).
+     To reorder questions: rearrange the objects in the array. */
+  const quizData = [
+    {
+      q: "Apa tujuan utama Bank Indonesia (BI) berdasarkan UU No. 13 Tahun 1999?",
+      opts: ["Mencari keuntungan dari bunga pinjaman","Mencapai dan memelihara kestabilan nilai rupiah","Menjamin simpanan nasabah perbankan","Mengawasi pasar modal Indonesia"],
+      ans: 1, exp: "Berdasarkan UU No. 13 Tahun 1999, tujuan BI adalah mencapai dan memelihara kestabilan nilai rupiah terhadap barang/jasa dan mata uang asing."
+    },
+    {
+      q: "Simpanan yang hanya dapat ditarik pada waktu tertentu (jatuh tempo) disebut...",
+      opts: ["Tabungan (Saving Deposit)","Giro (Demand Deposit)","Deposito (Time Deposit)","Safe Deposit Box"],
+      ans: 2, exp: "Deposito adalah produk simpanan yang penarikannya hanya bisa dilakukan pada waktu tertentu (jatuh tempo). Tabungan bisa kapan saja, giro bisa kapan saja tapi via cek/bilyet."
+    },
+    {
+      q: "Manakah yang TIDAK BOLEH dilakukan oleh Bank Perkreditan Rakyat (BPR)?",
+      opts: ["Menerima tabungan dari masyarakat","Menyalurkan kredit kepada nasabah","Menerima simpanan dalam bentuk giro","Menyediakan pembiayaan bagi hasil"],
+      ans: 2, exp: "BPR TIDAK BOLEH menerima simpanan dalam bentuk giro, melakukan penyertaan modal, dan bergerak di bidang asuransi."
+    },
+    {
+      q: "Perbedaan utama Bank Syariah dan Bank Konvensional dalam hal imbalan adalah...",
+      opts: ["Bank Syariah menggunakan bunga tetap, Bank Konvensional bagi hasil","Bank Syariah menggunakan bagi hasil/margin, Bank Konvensional menggunakan sistem bunga","Keduanya menggunakan sistem bunga tapi berbeda besarannya","Bank Syariah tidak memberikan imbalan kepada nasabah"],
+      ans: 1, exp: "Bank Syariah menggunakan sistem bagi hasil, margin keuntungan, dan fee — bukan bunga. Bank Konvensional menggunakan sistem bunga."
+    },
+    {
+      q: "Pasar Modal adalah tempat bertemunya...",
+      opts: ["Penjual dan pembeli barang kebutuhan pokok","Emiten (butuh dana) dan investor (punya dana) via instrumen keuangan","Bank dan nasabah untuk transaksi kredit","Pemerintah dan swasta untuk proyek infrastruktur"],
+      ans: 1, exp: "Pasar Modal adalah tempat bertemunya emiten/perusahaan yang membutuhkan dana dengan investor yang memiliki dana, melalui perdagangan instrumen seperti saham dan obligasi."
+    },
+    {
+      q: "OJK (Otoritas Jasa Keuangan) dibentuk dengan tujuan UTAMA...",
+      opts: ["Mencetak uang rupiah untuk kebutuhan negara","Mengatur dan mengawasi sektor jasa keuangan serta melindungi konsumen","Memberikan kredit kepada usaha kecil dan menengah","Menjamin simpanan nasabah bila bank bangkrut"],
+      ans: 1, exp: "OJK dibentuk untuk menyelenggarakan sistem pengaturan dan pengawasan yang terintegrasi di sektor jasa keuangan, serta melindungi konsumen dan masyarakat."
+    },
+    {
+      q: "LPS (Lembaga Penjamin Simpanan) lahir sebagai respons atas...",
+      opts: ["Kemerdekaan Indonesia tahun 1945","Reformasi tahun 1998","Krisis moneter Asia tahun 1998 yang berdampak pada perbankan Indonesia","Bergabungnya Indonesia ke ASEAN"],
+      ans: 2, exp: "LPS lahir sebagai respons atas krisis moneter 1998 yang menyebabkan dilikuidasinya 16 bank dan menurunnya kepercayaan masyarakat pada sistem perbankan."
+    },
+    {
+      q: "Fintech yang berfungsi menghubungkan peminjam langsung dengan pemberi pinjaman disebut...",
+      opts: ["Dompet Digital","P2P Lending (Pinjaman Online)","Crowdfunding","Manajemen Investasi"],
+      ans: 1, exp: "P2P Lending (Peer-to-Peer Lending) adalah fintech yang menghubungkan peminjam langsung dengan pemberi pinjaman tanpa melalui bank konvensional."
+    },
+    {
+      q: "Dalam leasing, pihak yang menggunakan aset dengan membayar cicilan berkala disebut...",
+      opts: ["Lessor","Lessee","Debitor","Kreditur"],
+      ans: 1, exp: "Dalam leasing, LESSEE adalah pihak yang menggunakan aset, sedangkan LESSOR adalah perusahaan pembiayaan yang menyediakan aset tersebut."
+    },
+    {
+      q: "Koperasi berlandaskan UU No. 25 Tahun 1992 menjalankan prinsip 'satu anggota satu suara'. Ini disebut prinsip...",
+      opts: ["Profit Oriented","Ekonomi Demokratis","Bagi Hasil","Komersial"],
+      ans: 1, exp: "Prinsip 'satu anggota satu suara' (OSOV - One Share One Vote) mencerminkan prinsip Ekonomi Demokratis yang menjadi landasan operasional koperasi Indonesia."
+    }
+  ];
+
+  /* Quiz state — reset by initQuiz() each time the quiz section is visited */
+  let currentQ = 0;  /* index of the question currently displayed */
+  let score    = 0;  /* number of correct answers so far           */
+  let answered = false; /* true after user selects an option; prevents re-selection */
+
+  /* Reset quiz state and render the first question */
+  function initQuiz() {
+    currentQ = 0; score = 0; answered = false;
+    document.getElementById('quizCard').style.display = 'block';
+    document.getElementById('quizResult').style.display = 'none';
+    document.getElementById('quizScore').textContent = '0';
+    renderQuestion();
+  }
+
+  /* Build the UI for the current question (quizData[currentQ]) */
+  function renderQuestion() {
+    answered = false;
+    const q = quizData[currentQ];
+
+    /* Update header labels */
+    document.getElementById('quizQNum').textContent = `Soal ${currentQ+1} dari ${quizData.length}`;
+    /* Advance progress bar proportionally */
+    document.getElementById('quizProgressFill').style.width = ((currentQ+1)/quizData.length*100) + '%';
+    document.getElementById('quizQuestion').textContent = q.q;
+
+    /* Hide feedback and Next button until user picks an answer */
+    document.getElementById('quizFeedback').style.display = 'none';
+    document.getElementById('quizNextBtn').style.display = 'none';
+    document.getElementById('quizHint').textContent = 'Klik salah satu pilihan jawaban';
+
+    /* Generate option buttons dynamically from quizData */
+    const opts = document.getElementById('quizOptions');
+    opts.innerHTML = '';
+    const letters = ['A','B','C','D']; /* option letter labels */
+    q.opts.forEach((opt, i) => {
+      const el = document.createElement('div');
+      el.className = 'quiz-option';
+      el.innerHTML = `<div class="opt-letter">${letters[i]}</div><span>${opt}</span>`;
+      el.onclick = () => selectAnswer(i, el); /* capture index i at time of creation */
+      opts.appendChild(el);
+    });
+  }
+
+  /* Handle the user selecting an answer option */
+  function selectAnswer(idx, el) {
+    if (answered) return; /* guard: ignore clicks after first selection */
+    answered = true;
+    const q = quizData[currentQ];
+
+    /* Disable all option click handlers to prevent further selection */
+    const allOpts = document.querySelectorAll('.quiz-option');
+    allOpts.forEach(o => o.onclick = null);
+
+    el.classList.add('selected'); /* highlight the chosen option */
+
+    const fb = document.getElementById('quizFeedback');
+    if (idx === q.ans) {
+      /* Correct answer path */
+      score++;
+      document.getElementById('quizScore').textContent = score;
+      el.classList.add('correct');
+      fb.className = 'quiz-feedback correct-fb';
+      fb.innerHTML = '✅ <strong>Benar!</strong> ' + q.exp;
+    } else {
+      /* Wrong answer path — also reveal the correct option */
+      el.classList.add('wrong');
+      allOpts[q.ans].classList.add('correct'); /* always show correct answer */
+      fb.className = 'quiz-feedback wrong-fb';
+      fb.innerHTML = '❌ <strong>Kurang tepat.</strong> ' + q.exp;
+    }
+
+    fb.style.display = 'block';
+    document.getElementById('quizHint').textContent = '';
+    document.getElementById('quizNextBtn').style.display = 'inline-flex';
+    /* Change button label on the final question */
+    document.getElementById('quizNextBtn').textContent =
+      currentQ < quizData.length-1 ? 'Soal Berikutnya →' : 'Lihat Hasil 🎯';
+  }
+
+  /* Move to the next question, or show results if all answered */
+  function nextQuestion() {
+    currentQ++;
+    if (currentQ >= quizData.length) {
+      showResult();
+    } else {
+      renderQuestion();
+    }
+  }
+
+  /* Calculate score percentage and render the result screen */
+  function showResult() {
+    document.getElementById('quizCard').style.display = 'none';
+    document.getElementById('quizResult').style.display = 'block';
+    document.getElementById('resultScore').textContent = score;
+
+    const pct = score / quizData.length;
+    let emoji, msg;
+    /* Score thresholds — adjust percentages or messages as needed */
+    if      (pct >= 0.9) { emoji = '🏆'; msg = 'Luar biasa! Kamu menguasai materi ini dengan sangat baik!'; }
+    else if (pct >= 0.7) { emoji = '⭐'; msg = 'Bagus sekali! Sedikit lagi kamu bisa sempurna!'; }
+    else if (pct >= 0.5) { emoji = '👍'; msg = 'Cukup baik! Yuk pelajari lagi bagian yang belum dipahami.'; }
+    else                 { emoji = '📚'; msg = 'Jangan menyerah! Pelajari lagi materinya dan coba lagi ya.'; }
+
+    document.getElementById('resultEmoji').textContent = emoji;
+    document.getElementById('resultMsg').textContent = msg;
+
+    visitedSections.add('quiz'); /* ensure quiz counts toward progress */
+    updateProgress();
+  }
+
+  /* Reset and restart the quiz from question 1 */
+  function restartQuiz() {
+    initQuiz();
+  }
+
+  /* ── INITIALISATION ──
+     Run once on page load: set progress bar to its initial state
+     and prepare the quiz so it's ready when the user navigates to it. */
+  updateProgress();
+  initQuiz();
+
+  /* ============================================================
+     MODULE 4: FLASHCARD
+     ============================================================
+
+     DATA MODEL  (flashcardData array)
+     ───────────────────────────────────
+     Each card object has:
+       term       {string} — concept name shown on the front face
+       category   {string} — used for filtering; must match a pill label
+       definition {string} — explanation shown on the back face
+       example    {string} — supplementary note / real-world example
+
+     To add a card: push a new object to flashcardData.
+     To add a category: push a new string to fcCategories AND
+     add matching cards with that category string.
+
+     STATE VARIABLES
+     ────────────────
+     fcFiltered   — current working deck (subset or full, after filter)
+     fcIndex      — index within fcFiltered currently displayed
+     masteredSet  — Set of original flashcardData indices that are mastered
+     fcIsFlipped  — true while the card is showing its back face
+     fcActiveCategory — string of the selected filter pill ("Semua" = all)
+
+     FUNCTIONS
+     ──────────
+     initFlashcards()    — Reset state, render pills, show card 0.
+     fcFilter(cat)       — Filter deck by category, reset to index 0.
+     renderPills()       — Build category pill buttons in #fcPills.
+     fcShowCard(idx)     — Render front+back content for fcFiltered[idx].
+     flipCard()          — Toggle .flipped on #fcInner.
+     fcNav(dir)          — Move ±1 card; always unflips first.
+     fcShuffle()         — Fisher-Yates shuffle on fcFiltered, restart.
+     fcToggleMastered()  — Add/remove current card from masteredSet.
+     updateMastery()     — Refresh mastery bar, count, dot colours.
+     renderDots()        — Build dot strip matching current fcFiltered.
+     fcGoTo(idx)         — Jump directly to a dot-clicked card.
+     ============================================================ */
+
+  /* ── Flashcard data ──
+     24 cards spanning all 9 topic sections.
+     category values must exactly match entries in fcCategories below. */
+  const flashcardData = [
+    /* ─── Bank Sentral ─── */
+    {
+      term: "Bank Sentral",
+      category: "Bank Sentral",
+      definition: "Bank yang berfungsi sebagai <strong>bank sirkulasi</strong> dan sebagai <strong>induk dari bank-bank lain</strong> (banker of banks). Di Indonesia, Bank Sentral adalah Bank Indonesia (BI).",
+      example: "BI tidak melayani tabungan atau kredit masyarakat umum — hanya berhubungan dengan bank lain dan pemerintah."
+    },
+    {
+      term: "Tujuan Bank Indonesia",
+      category: "Bank Sentral",
+      definition: "Berdasarkan <strong>UU No. 13 Tahun 1999</strong>, tujuan Bank Indonesia adalah <strong>mencapai dan memelihara kestabilan nilai rupiah</strong>, baik terhadap barang & jasa (inflasi) maupun terhadap mata uang asing (nilai tukar).",
+      example: "Jika rupiah melemah terhadap dolar, BI dapat melakukan intervensi pasar atau menaikkan suku bunga."
+    },
+    {
+      term: "Tiga Tugas Bank Indonesia",
+      category: "Bank Sentral",
+      definition: "1. <strong>Mengeluarkan alat pembayaran yang sah</strong> (monopoli mencetak & mengedarkan uang). 2. <strong>Menetapkan dan melaksanakan kebijakan moneter</strong> (mengendalikan jumlah uang beredar). 3. <strong>Mengatur dan menjaga kelancaran sistem pembayaran</strong> (memberi izin jasa pembayaran).",
+      example: "Suku bunga acuan BI (BI Rate) adalah instrumen kebijakan moneter yang mempengaruhi suku bunga bank umum."
+    },
+    /* ─── Bank Umum ─── */
+    {
+      term: "Bank Umum",
+      category: "Bank Umum",
+      definition: "Badan usaha yang <strong>menghimpun dana</strong> dari masyarakat dalam bentuk simpanan dan <strong>menyalurkannya</strong> kepada masyarakat dalam rangka meningkatkan taraf hidup rakyat banyak.",
+      example: "Contoh: Bank BCA, Bank Mandiri, Bank BRI, Bank BNI."
+    },
+    {
+      term: "Tabungan (Saving Deposit)",
+      category: "Bank Umum",
+      definition: "Produk simpanan di bank yang penyetoran dan penarikannya dapat dilakukan <strong>kapan saja</strong> sesuai kebutuhan nasabah.",
+      example: "Tabungan BRI BritAma, BCA Tahapan, atau Mandiri Tabungan bisa ditarik melalui ATM kapanpun."
+    },
+    {
+      term: "Deposito (Time Deposit)",
+      category: "Bank Umum",
+      definition: "Produk simpanan di bank yang penyetorannya maupun penarikannya <strong>hanya dapat dilakukan pada waktu tertentu</strong> (jatuh tempo). Menawarkan bunga lebih tinggi dibanding tabungan biasa.",
+      example: "Deposito berjangka 3 bulan: dana baru bisa ditarik setelah 3 bulan. Jika ditarik lebih awal, biasanya dikenakan penalti."
+    },
+    {
+      term: "Giro (Demand Deposit)",
+      category: "Bank Umum",
+      definition: "Produk simpanan perbankan yang dananya dapat ditarik kapan saja menggunakan <strong>cek</strong>, <strong>bilyet giro</strong>, atau pemindahbukuan. Difokuskan untuk transaksi bisnis frekuensi tinggi dalam jumlah besar.",
+      example: "Perusahaan sering menggunakan giro untuk membayar supplier, bukan tabungan biasa."
+    },
+    {
+      term: "Cek vs Bilyet Giro",
+      category: "Bank Umum",
+      definition: "<strong>Cek</strong>: surat berharga yang bisa langsung <em>diuangkan di bank</em> (dicairkan tunai). <br><strong>Bilyet Giro</strong>: surat berharga yang <em>tidak bisa diuangkan tunai</em> — hanya bisa disetorkan ke rekening penerima.",
+      example: "Menerima cek → bisa langsung ke bank teller. Menerima bilyet giro → harus setor ke rekening dulu."
+    },
+    {
+      term: "Kredit Modal Kerja",
+      category: "Bank Umum",
+      definition: "Kredit yang diberikan untuk <strong>pembiayaan modal kerja perusahaan</strong>, baik perusahaan perorangan maupun yang berbadan hukum, guna menjalankan kegiatan operasional sehari-hari.",
+      example: "Toko kelontong meminjam Rp 50 juta untuk menambah stok barang dagangan."
+    },
+    {
+      term: "Kredit Pemilikan Rumah (KPR)",
+      category: "Bank Umum",
+      definition: "Kredit yang digunakan untuk <strong>membeli rumah</strong> atau untuk kebutuhan konsumtif lainnya dengan <strong>jaminan/agunan berupa rumah</strong> tersebut.",
+      example: "Membeli rumah seharga Rp 500 juta dengan uang muka 20% dan cicilan KPR 20 tahun."
+    },
+    {
+      term: "Kartu Kredit",
+      category: "Bank Umum",
+      definition: "Alat pembayaran non-tunai dimana <strong>penerbit kartu kredit memberikan pinjaman uang</strong> kepada konsumen untuk bertransaksi — bukan mengambil uang dari rekening.",
+      example: "Berbeda dengan kartu debit yang langsung memotong saldo, kartu kredit adalah hutang yang dibayar nanti."
+    },
+    /* ─── BPR ─── */
+    {
+      term: "BPR (Bank Perkreditan Rakyat)",
+      category: "BPR",
+      definition: "Bank yang menerima simpanan <strong>hanya dalam bentuk deposito berjangka dan tabungan</strong>. BPR <em>tidak boleh</em> menerima giro, melakukan penyertaan modal, atau bergerak di bidang asuransi.",
+      example: "BPR fokus melayani masyarakat pedesaan dan usaha kecil yang belum terjangkau bank umum besar."
+    },
+    {
+      term: "Perbedaan BPR & Bank Umum",
+      category: "BPR",
+      definition: "<strong>BPR</strong>: tidak bisa terima giro, tidak bisa penyertaan modal, tidak bisa asuransi, layanan lebih terbatas. <strong>Bank Umum</strong>: bisa terima giro, layanan lebih lengkap (transfer, kartu kredit, safe deposit box, dll).",
+      example: "BPR Jatim melayani petani dan UMKM di desa-desa Jawa Timur dengan persyaratan kredit yang lebih sederhana."
+    },
+    /* ─── Bank Syariah ─── */
+    {
+      term: "Bank Syariah",
+      category: "Bank Syariah",
+      definition: "Bank yang beroperasi berdasarkan <strong>prinsip hukum Islam</strong>. Menggunakan sistem <strong>bagi hasil, margin keuntungan, dan fee</strong> — bukan bunga. Hanya berinvestasi pada usaha halal dan diawasi oleh <strong>Dewan Pengawas Syariah (DPS)</strong>.",
+      example: "Bank Syariah Indonesia (BSI) — hasil merger BNI Syariah, BRI Syariah, dan Mandiri Syariah."
+    },
+    {
+      term: "Syariah vs Konvensional: 3 Perbedaan Utama",
+      category: "Bank Syariah",
+      definition: "1. <strong>Imbalan</strong>: Syariah = bagi hasil/margin; Konvensional = bunga tetap. 2. <strong>Investasi</strong>: Syariah = halal saja; Konvensional = halal & non-halal. 3. <strong>Hubungan nasabah</strong>: Syariah = kemitraan; Konvensional = debitur-kreditur.",
+      example: "Akad umum syariah: Mudharabah (bagi hasil), Murabahah (jual beli), Ijarah (sewa)."
+    },
+    /* ─── IKNB ─── */
+    {
+      term: "IKNB (Industri Keuangan Non Bank)",
+      category: "IKNB",
+      definition: "Lembaga yang menyelenggarakan aktivitas keuangan berupa <strong>penghimpunan dana dari masyarakat</strong> lalu menyalurkannya untuk kegiatan investasi di perusahaan serta menerbitkan surat berharga.",
+      example: "Meliputi: Pasar Modal, Koperasi, Asuransi, Pegadaian, Leasing, Fintech, dan Dana Pensiun."
+    },
+    {
+      term: "Pasar Modal",
+      category: "IKNB",
+      definition: "Tempat bertemunya <strong>emiten</strong> (perusahaan yang butuh dana) dan <strong>investor</strong> (punya dana) melalui perdagangan instrumen keuangan jangka panjang, seperti <strong>saham</strong> dan <strong>obligasi</strong>.",
+      example: "Bursa Efek Indonesia (BEI/IDX) di Jakarta adalah tempat pasar modal Indonesia beroperasi."
+    },
+    {
+      term: "Koperasi",
+      category: "IKNB",
+      definition: "Badan usaha yang dimiliki dan dikelola oleh <strong>anggota secara sukarela</strong> untuk meningkatkan kesejahteraan bersama berdasarkan <strong>asas kekeluargaan</strong>. Prinsip: <em>satu anggota satu suara</em> (UU No. 25 Tahun 1992).",
+      example: "Keuntungan koperasi dibagikan sebagai Sisa Hasil Usaha (SHU) kepada anggota secara proporsional."
+    },
+    {
+      term: "Asuransi",
+      category: "IKNB",
+      definition: "Perjanjian kontrak antara <strong>tertanggung</strong> (nasabah) dan <strong>penanggung</strong> (perusahaan asuransi), di mana nasabah membayar <strong>premi</strong> untuk mendapat perlindungan finansial atas risiko tak terduga.",
+      example: "Asuransi jiwa, asuransi kesehatan, asuransi kendaraan, dan asuransi properti."
+    },
+    {
+      term: "Pegadaian",
+      category: "IKNB",
+      definition: "Lembaga keuangan non-bank milik negara (BUMN/anak usaha BRI) yang menyediakan <strong>pinjaman cepat dengan jaminan barang</strong> bergerak atau tidak bergerak, serta layanan <strong>investasi emas</strong>.",
+      example: "Gadaikan laptop atau emas untuk dapat pinjaman tunai dalam hitungan jam tanpa perlu BI Checking."
+    },
+    {
+      term: "Leasing (Sewa Guna Usaha)",
+      category: "IKNB",
+      definition: "Pembiayaan aset oleh <strong>lessor</strong> (perusahaan pembiayaan) kepada <strong>lessee</strong> (pengguna) dengan cicilan berkala. Di akhir kontrak, lessee bisa: <em>membeli, memperpanjang, atau mengembalikan</em> aset.",
+      example: "Kredit motor/mobil via FIF atau Adira Finance — lessor memiliki kendaraan selama masa cicilan."
+    },
+    {
+      term: "Fintech (Financial Technology)",
+      category: "IKNB",
+      definition: "Inovasi jasa keuangan yang memanfaatkan <strong>teknologi digital</strong> untuk layanan yang lebih praktis, efisien, dan inklusif. Jenis: dompet digital, P2P lending, manajemen investasi, dan crowdfunding.",
+      example: "GoPay, OVO, DANA (dompet digital) | Modalku, JULO (P2P Lending) | Bibit (investasi) | Kitabisa (crowdfunding)."
+    },
+    {
+      term: "Dana Pensiun",
+      category: "IKNB",
+      definition: "Badan hukum yang mengelola program yang menjanjikan <strong>manfaat pensiun</strong>. Dana dikumpulkan dari iuran karyawan dan pemberi kerja selama masa kerja aktif.",
+      example: "BPJS Ketenagakerjaan (JHT - Jaminan Hari Tua) dan DPLK (Dana Pensiun Lembaga Keuangan)."
+    },
+    /* ─── OJK & LPS ─── */
+    {
+      term: "OJK (Otoritas Jasa Keuangan)",
+      category: "OJK & LPS",
+      definition: "Lembaga yang berfungsi menyelenggarakan sistem <strong>pengaturan dan pengawasan terintegrasi</strong> terhadap keseluruhan kegiatan di sektor jasa keuangan, serta <strong>melindungi kepentingan konsumen</strong>.",
+      example: "OJK mengawasi perbankan, pasar modal, asuransi, dana pensiun, leasing, fintech, dan aset kripto."
+    },
+    {
+      term: "LPS (Lembaga Penjamin Simpanan)",
+      category: "OJK & LPS",
+      definition: "Lembaga yang <strong>menjamin simpanan nasabah</strong> perbankan (hingga <strong>Rp 2 miliar per nasabah per bank</strong>) dan turut aktif memelihara stabilitas sistem perbankan Indonesia.",
+      example: "Lahir dari krisis moneter 1998 yang menyebabkan 16 bank dilikuidasi dan kepercayaan masyarakat menurun."
+    }
+  ];
+
+  /* All available category filters — "Semua" is always first */
+  const fcCategories = ['Semua','Bank Sentral','Bank Umum','BPR','Bank Syariah','IKNB','OJK & LPS'];
+
+  /* ── Flashcard state ── */
+  let fcFiltered       = [...flashcardData]; /* working deck (may be filtered subset) */
+  let fcIndex          = 0;                  /* current card index within fcFiltered   */
+  let masteredSet      = new Set();          /* Set of original data indices mastered  */
+  let fcIsFlipped      = false;              /* true when back face is showing         */
+  let fcActiveCategory = 'Semua';            /* currently selected filter pill         */
+
+  /* Initialise (or reset) the entire flashcard component */
+  function initFlashcards() {
+    fcFiltered       = [...flashcardData]; /* start with full deck */
+    fcIndex          = 0;
+    fcIsFlipped      = false;
+    fcActiveCategory = 'Semua';
+    renderPills();
+    renderDots();
+    fcShowCard(0);
+  }
+
+  /* Filter the deck by category and reset to the first card */
+  function fcFilter(cat) {
+    fcActiveCategory = cat;
+    fcFiltered = cat === 'Semua'
+      ? [...flashcardData]
+      : flashcardData.filter(c => c.category === cat);
+    fcIndex = 0;
+    fcIsFlipped = false;
+    document.getElementById('fcInner').classList.remove('flipped');
+    renderPills();   /* re-render to update active pill highlight */
+    renderDots();
+    fcShowCard(0);
+  }
+
+  /* Build category pill buttons */
+  function renderPills() {
+    const container = document.getElementById('fcPills');
+    container.innerHTML = '';
+    fcCategories.forEach(cat => {
+      /* Skip categories with no cards in the full data set */
+      const count = cat === 'Semua'
+        ? flashcardData.length
+        : flashcardData.filter(c => c.category === cat).length;
+      if (count === 0) return;
+
+      const pill = document.createElement('button');
+      pill.className = 'fc-category-pill' + (cat === fcActiveCategory ? ' active' : '');
+      pill.textContent = cat + (cat === 'Semua' ? ` (${count})` : '');
+      pill.onclick = () => fcFilter(cat);
+      container.appendChild(pill);
+    });
+  }
+
+  /* Render the content of the card at position idx in fcFiltered */
+  function fcShowCard(idx) {
+    if (fcFiltered.length === 0) return;
+
+    /* Clamp index to valid range */
+    fcIndex = Math.max(0, Math.min(idx, fcFiltered.length - 1));
+
+    const card = fcFiltered[fcIndex];
+    const origIdx = flashcardData.indexOf(card); /* original index for mastery tracking */
+
+    /* Update front face */
+    document.getElementById('fcFrontCategory').textContent = card.category;
+    document.getElementById('fcFrontTerm').textContent     = card.term;
+
+    /* Update back face */
+    document.getElementById('fcBackDef').innerHTML         = card.definition;
+    document.getElementById('fcBackExampleText').textContent = card.example;
+
+    /* Update counter */
+    document.getElementById('fcCounter').textContent =
+      `${fcIndex + 1} / ${fcFiltered.length}`;
+
+    /* Apply mastered state to inner element */
+    const inner = document.getElementById('fcInner');
+    if (masteredSet.has(origIdx)) {
+      inner.classList.add('mastered');
+    } else {
+      inner.classList.remove('mastered');
+    }
+
+    /* Update star button appearance */
+    const starBtn = document.getElementById('fcStarBtn');
+    starBtn.textContent  = masteredSet.has(origIdx) ? '⭐' : '☆';
+    starBtn.className    = 'fc-btn fc-btn-star' + (masteredSet.has(origIdx) ? ' starred' : '');
+
+    /* Update nav button disabled states */
+    document.getElementById('fcPrevBtn').disabled = fcIndex === 0;
+    document.getElementById('fcNextBtn').disabled = fcIndex === fcFiltered.length - 1;
+
+    /* Sync dot highlight */
+    document.querySelectorAll('.fc-dot').forEach((d, i) => {
+      const isActive   = i === fcIndex;
+      const isMastered = masteredSet.has(flashcardData.indexOf(fcFiltered[i]));
+      d.className = 'fc-dot' + (isActive ? ' active' : '') + (isMastered && !isActive ? ' mastered-dot' : '');
+    });
+
+    updateMastery();
+  }
+
+  /* Flip the card to show the back face (or flip back to front) */
+  function flipCard() {
+    fcIsFlipped = !fcIsFlipped;
+    document.getElementById('fcInner').classList.toggle('flipped', fcIsFlipped);
+  }
+
+  /* Navigate to the previous (dir=-1) or next (dir=+1) card */
+  function fcNav(dir) {
+    /* Always un-flip before moving to a new card */
+    fcIsFlipped = false;
+    document.getElementById('fcInner').classList.remove('flipped');
+    fcShowCard(fcIndex + dir);
+  }
+
+  /* Fisher-Yates shuffle on the current filtered deck, then restart */
+  function fcShuffle() {
+    for (let i = fcFiltered.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [fcFiltered[i], fcFiltered[j]] = [fcFiltered[j], fcFiltered[i]];
+    }
+    fcIsFlipped = false;
+    document.getElementById('fcInner').classList.remove('flipped');
+    renderDots();
+    fcShowCard(0);
+  }
+
+  /* Toggle the current card's mastered status */
+  function fcToggleMastered() {
+    const origIdx = flashcardData.indexOf(fcFiltered[fcIndex]);
+    if (masteredSet.has(origIdx)) {
+      masteredSet.delete(origIdx);
+    } else {
+      masteredSet.add(origIdx);
+    }
+    fcShowCard(fcIndex); /* refresh star button & mastered stamp */
+    updateMastery();
+  }
+
+  /* Refresh the mastery progress bar and count label */
+  function updateMastery() {
+    /* Mastery % is based on the full flashcardData, not filtered subset */
+    const total  = flashcardData.length;
+    const done   = masteredSet.size;
+    const pct    = total > 0 ? (done / total * 100).toFixed(0) : 0;
+    document.getElementById('fcMasteryFill').style.width  = pct + '%';
+    document.getElementById('fcMasteryCount').textContent = `${done} / ${total}`;
+  }
+
+  /* Build the dot navigation strip for the current filtered deck */
+  function renderDots() {
+    const container = document.getElementById('fcDots');
+    container.innerHTML = '';
+    fcFiltered.forEach((card, i) => {
+      const btn      = document.createElement('button');
+      const origIdx  = flashcardData.indexOf(card);
+      const isMaster = masteredSet.has(origIdx);
+      btn.className  = 'fc-dot' + (i === fcIndex ? ' active' : '') + (isMaster ? ' mastered-dot' : '');
+      btn.title      = card.term; /* tooltip on hover */
+      btn.onclick    = () => fcGoTo(i);
+      container.appendChild(btn);
+    });
+  }
+
+  /* Jump directly to a specific card index (used by dot clicks) */
+  function fcGoTo(idx) {
+    fcIsFlipped = false;
+    document.getElementById('fcInner').classList.remove('flipped');
+    fcShowCard(idx);
+  }
+
+  /* Keyboard shortcuts — only active when the flashcard section is visible */
+  document.addEventListener('keydown', function(e) {
+    const flashSec = document.getElementById('section-flashcard');
+    if (!flashSec || !flashSec.classList.contains('active')) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); fcNav(-1); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); fcNav(1);  }
+    if (e.key === ' ')          { e.preventDefault(); flipCard(); }
+    if (e.key === 's' || e.key === 'S') { e.preventDefault(); fcShuffle(); }
+  });
+
+  /* Hook flashcard init into the navigation system —
+     initFlashcards() is called automatically when showSection('flashcard') runs */
+  const _origShowSection = showSection;
+  /* Patch showSection to also init flashcards when that section opens */
+  (function() {
+    const origShowSection = showSection;
+    showSection = function(id) {
+      origShowSection(id);
+      if (id === 'flashcard') initFlashcards();
+      if (id === 'glosarium') initGloss();
+      if (id === 'peta-konsep') drawPetaLines();
+    };
+  })();
+
+  /* ============================================================
+     GLOSSARY DATA
+     Each entry: { term, def, category, id }
+     id should be lowercase-hyphenated, unique, used for anchor links.
+     ============================================================ */
+  const glossData = [
+    // A
+    { id: 'akad', term: 'Akad', category: 'Bank Syariah',
+      def: 'Perjanjian atau kontrak dalam perbankan syariah yang mengikat kedua belah pihak sesuai prinsip hukum Islam. Setiap transaksi syariah harus didasarkan pada akad yang jelas (contoh: Mudharabah, Murabahah, Ijarah).' },
+    { id: 'agunan', term: 'Agunan', category: 'Bank Umum',
+      def: 'Jaminan berupa aset (properti, kendaraan, dll.) yang diserahkan nasabah kepada bank sebagai syarat pemberian kredit. Bila nasabah gagal bayar, bank berhak menyita agunan.' },
+    { id: 'asuransi', term: 'Asuransi', category: 'IKNB',
+      def: 'Perjanjian antara tertanggung (nasabah) dan penanggung (perusahaan asuransi) di mana nasabah membayar premi secara berkala untuk mendapat perlindungan finansial terhadap risiko kerugian tak terduga (kematian, sakit, kecelakaan, kerusakan aset).' },
+    // B
+    { id: 'bagi-hasil', term: 'Bagi Hasil', category: 'Bank Syariah',
+      def: 'Sistem imbalan dalam perbankan syariah di mana keuntungan (atau kerugian) dari suatu usaha dibagi antara bank dan nasabah sesuai nisbah (rasio) yang disepakati di awal. Berbeda dengan bunga yang bersifat tetap.' },
+    { id: 'bank-sentral', term: 'Bank Sentral', category: 'Bank Sentral',
+      def: 'Bank milik pemerintah yang berfungsi sebagai otoritas moneter tertinggi suatu negara. Di Indonesia adalah Bank Indonesia (BI). Bertugas menjaga kestabilan nilai rupiah, mengatur sistem pembayaran, dan menjadi "banker of banks".' },
+    { id: 'bank-umum', term: 'Bank Umum', category: 'Bank Umum',
+      def: 'Badan usaha yang menghimpun dana masyarakat (tabungan, deposito, giro) dan menyalurkannya dalam bentuk kredit serta jasa-jasa keuangan lainnya. Contoh: BCA, BRI, Mandiri, BNI.' },
+    { id: 'bei', term: 'BEI (Bursa Efek Indonesia)', category: 'IKNB',
+      def: 'Lembaga yang mengelola dan menyelenggarakan pasar modal di Indonesia. Berlokasi di Jakarta, BEI (atau IDX — Indonesia Stock Exchange) merupakan tempat bertemunya emiten dan investor untuk jual-beli efek seperti saham dan obligasi.' },
+    { id: 'bilyet-giro', term: 'Bilyet Giro', category: 'Bank Umum',
+      def: 'Surat perintah pembayaran dari nasabah kepada bank untuk memindahbukukan sejumlah uang ke rekening penerima. Berbeda dengan cek, bilyet giro tidak bisa langsung dicairkan secara tunai — hanya bisa disetorkan ke rekening.' },
+    { id: 'blanket-guarantee', term: 'Blanket Guarantee', category: 'LPS',
+      def: 'Jaminan pemerintah yang menanggung seluruh kewajiban bank tanpa batas jumlah, yang diberlakukan Indonesia pasca-krisis 1998 melalui Keppres No. 26 dan 193 Tahun 1998. Kebijakan ini kemudian digantikan dengan sistem penjaminan terbatas oleh LPS.' },
+    { id: 'bpr', term: 'BPR (Bank Perkreditan Rakyat)', category: 'BPR',
+      def: 'Bank yang hanya menerima simpanan dalam bentuk deposito berjangka dan tabungan, tidak boleh menerima giro, tidak boleh melakukan penyertaan modal, dan tidak boleh bergerak di bidang asuransi. Fokus melayani masyarakat pedesaan dan usaha kecil.' },
+    { id: 'bpjs-ketenagakerjaan', term: 'BPJS Ketenagakerjaan', category: 'IKNB',
+      def: 'Badan penyelenggara jaminan sosial ketenagakerjaan di Indonesia yang mengelola program Jaminan Hari Tua (JHT), Jaminan Kecelakaan Kerja (JKK), Jaminan Kematian (JKM), dan Jaminan Pensiun. Termasuk dalam kategori Dana Pensiun/IKNB.' },
+    { id: 'bunga', term: 'Bunga (Interest)', category: 'Bank Umum',
+      def: 'Imbalan berupa persentase dari jumlah pinjaman atau simpanan yang dibayarkan secara berkala. Bunga bersifat tetap dan dihitung di awal, berbeda dengan bagi hasil syariah yang bergantung pada kinerja usaha.' },
+    // C
+    { id: 'capital-gain', term: 'Capital Gain', category: 'IKNB',
+      def: 'Keuntungan yang diperoleh investor dari kenaikan harga aset investasi (seperti saham atau properti) ketika dijual melebihi harga beli awalnya.' },
+    { id: 'crowdfunding', term: 'Crowdfunding', category: 'IKNB',
+      def: 'Model penggalangan dana digital di mana banyak orang berkontribusi secara kecil-kecilan untuk mendanai suatu proyek atau tujuan sosial/bisnis. Contoh platform di Indonesia: Kitabisa, Wujudkan.' },
+    // D
+    { id: 'dana-pensiun', term: 'Dana Pensiun', category: 'IKNB',
+      def: 'Badan hukum yang mengelola dan menjalankan program yang menjanjikan manfaat pensiun kepada peserta. Dana dikumpulkan dari iuran karyawan dan pemberi kerja selama masa kerja aktif.' },
+    { id: 'deposito', term: 'Deposito (Time Deposit)', category: 'Bank Umum',
+      def: 'Produk simpanan perbankan yang penarikannya hanya dapat dilakukan pada waktu tertentu (jatuh tempo) yang telah disepakati. Bunga deposito umumnya lebih tinggi dibanding tabungan biasa.' },
+    { id: 'devisa', term: 'Devisa', category: 'Bank Sentral',
+      def: 'Alat pembayaran internasional yang dapat digunakan untuk transaksi luar negeri, termasuk valuta asing (valas), emas batangan, dan surat berharga internasional. Bank Indonesia mengelola cadangan devisa negara.' },
+    { id: 'dividen', term: 'Dividen', category: 'IKNB',
+      def: 'Bagian dari laba perusahaan yang dibagikan kepada pemegang saham sebagai imbalan atas kepemilikan saham. Dividen bisa dibayar tunai atau dalam bentuk saham tambahan.' },
+    { id: 'dplk', term: 'DPLK (Dana Pensiun Lembaga Keuangan)', category: 'IKNB',
+      def: 'Dana pensiun yang dibentuk oleh bank atau perusahaan asuransi jiwa untuk menyelenggarakan program pensiun iuran pasti bagi perorangan, baik karyawan maupun pekerja mandiri.' },
+    { id: 'dps', term: 'DPS (Dewan Pengawas Syariah)', category: 'Bank Syariah',
+      def: 'Dewan yang bertugas mengawasi kegiatan operasional bank syariah agar sesuai dengan prinsip-prinsip syariah (hukum Islam). Setiap bank syariah wajib memiliki DPS.' },
+    // E
+    { id: 'emiten', term: 'Emiten', category: 'IKNB',
+      def: 'Perusahaan atau pihak yang menerbitkan dan menjual efek (saham atau obligasi) kepada masyarakat melalui pasar modal untuk mendapatkan modal.' },
+    // F
+    { id: 'fintech', term: 'Fintech (Financial Technology)', category: 'IKNB',
+      def: 'Inovasi di industri jasa keuangan yang memanfaatkan teknologi digital untuk membuat layanan keuangan lebih praktis, efisien, dan inklusif. Meliputi dompet digital, P2P lending, investasi digital, dan crowdfunding.' },
+    // G
+    { id: 'giro', term: 'Giro (Demand Deposit)', category: 'Bank Umum',
+      def: 'Simpanan di bank yang dapat ditarik kapan saja menggunakan cek atau bilyet giro. Umumnya digunakan oleh pelaku bisnis frekuensi tinggi. BPR tidak diperbolehkan menerima simpanan dalam bentuk giro.' },
+    { id: 'gharar', term: 'Gharar', category: 'Bank Syariah',
+      def: 'Ketidakpastian atau ketidakjelasan dalam suatu transaksi yang dilarang dalam perbankan syariah. Setiap akad syariah harus bebas dari gharar (ketidakpastian), riba (bunga), dan maysir (spekulasi/perjudian).' },
+    // I
+    { id: 'ijarah', term: 'Ijarah', category: 'Bank Syariah',
+      def: 'Akad sewa dalam perbankan syariah, di mana bank menyewakan aset (properti, kendaraan, dll.) kepada nasabah dengan imbalan berupa uang sewa (ujrah). Setelah kontrak berakhir, nasabah dapat membeli aset tersebut.' },
+    { id: 'iknb', term: 'IKNB (Industri Keuangan Non Bank)', category: 'IKNB',
+      def: 'Lembaga keuangan yang menyelenggarakan aktivitas penghimpunan dana dari masyarakat dan menyalurkannya untuk kegiatan investasi serta menerbitkan surat berharga, namun bukan bank. Meliputi Pasar Modal, Koperasi, Asuransi, Pegadaian, Leasing, Fintech, dan Dana Pensiun.' },
+    { id: 'inflasi', term: 'Inflasi', category: 'Bank Sentral',
+      def: 'Kenaikan tingkat harga barang dan jasa secara umum dan terus-menerus dalam suatu periode. Bank Indonesia bertugas menjaga inflasi tetap stabil melalui kebijakan moneter.' },
+    { id: 'investor', term: 'Investor', category: 'IKNB',
+      def: 'Pihak yang memiliki dana dan menginvestasikannya dengan membeli efek (saham, obligasi, reksa dana, dll.) di pasar modal dengan harapan mendapat imbal hasil.' },
+    // J
+    { id: 'jht', term: 'JHT (Jaminan Hari Tua)', category: 'IKNB',
+      def: 'Program perlindungan sosial yang memberikan manfaat berupa tabungan hari tua kepada tenaga kerja yang telah memasuki usia pensiun, mengalami cacat total, atau meninggal dunia. Dikelola oleh BPJS Ketenagakerjaan.' },
+    // K
+    { id: 'kebijakan-moneter', term: 'Kebijakan Moneter', category: 'Bank Sentral',
+      def: 'Langkah-langkah yang diambil Bank Indonesia untuk mengendalikan jumlah uang beredar dan suku bunga demi menjaga stabilitas harga (inflasi) dan mendukung pertumbuhan ekonomi.' },
+    { id: 'kestabilan-rupiah', term: 'Kestabilan Nilai Rupiah', category: 'Bank Sentral',
+      def: 'Tujuan utama Bank Indonesia: menjaga agar nilai rupiah tetap stabil terhadap barang/jasa (inflasi rendah) dan terhadap mata uang negara lain (nilai tukar stabil).' },
+    { id: 'koperasi', term: 'Koperasi', category: 'IKNB',
+      def: 'Badan usaha yang dimiliki dan dikelola secara sukarela oleh anggota untuk meningkatkan kesejahteraan bersama berdasarkan asas kekeluargaan. Menjalankan prinsip ekonomi demokratis (satu anggota satu suara/OSOV). Diatur oleh UU No. 25 Tahun 1992.' },
+    { id: 'kpr', term: 'KPR (Kredit Pemilikan Rumah)', category: 'Bank Umum',
+      def: 'Kredit yang diberikan bank untuk membiayai pembelian rumah atau kebutuhan konsumtif lainnya, dengan agunan berupa rumah yang dibeli tersebut.' },
+    { id: 'kredit', term: 'Kredit', category: 'Bank Umum',
+      def: 'Penyediaan uang atau tagihan oleh bank kepada nasabah yang membutuhkan dana, dengan kesepakatan bahwa nasabah akan mengembalikan pinjaman beserta bunganya dalam jangka waktu tertentu.' },
+    // L
+    { id: 'leasing', term: 'Leasing (Sewa Guna Usaha)', category: 'IKNB',
+      def: 'Pembiayaan aset oleh lessor (perusahaan pembiayaan) kepada lessee (pengguna) dengan pembayaran cicilan berkala. Di akhir kontrak, lessee dapat membeli aset, memperpanjang kontrak, atau mengembalikan aset.' },
+    { id: 'lessee', term: 'Lessee', category: 'IKNB',
+      def: 'Pihak yang menggunakan aset dalam perjanjian leasing dan membayar cicilan berkala kepada lessor.' },
+    { id: 'lessor', term: 'Lessor', category: 'IKNB',
+      def: 'Perusahaan pembiayaan yang membeli dan menyediakan aset dalam perjanjian leasing. Lessor memiliki hak kepemilikan aset selama masa cicilan berlangsung.' },
+    { id: 'lps', term: 'LPS (Lembaga Penjamin Simpanan)', category: 'LPS',
+      def: 'Lembaga independen yang menjamin simpanan nasabah perbankan hingga Rp 2 miliar per nasabah per bank, dan turut aktif memelihara stabilitas sistem perbankan Indonesia. Lahir dari krisis moneter 1998.' },
+    // M
+    { id: 'maysir', term: 'Maysir', category: 'Bank Syariah',
+      def: 'Spekulasi atau perjudian yang dilarang dalam perbankan syariah. Setiap transaksi syariah harus bebas dari unsur maysir (spekulasi), gharar (ketidakpastian), dan riba (bunga).' },
+    { id: 'mudharabah', term: 'Mudharabah', category: 'Bank Syariah',
+      def: 'Akad kerja sama usaha dalam perbankan syariah di mana satu pihak (bank/shahibul maal) menyediakan modal dan pihak lain (nasabah/mudharib) mengelola usaha. Keuntungan dibagi sesuai nisbah yang disepakati.' },
+    { id: 'murabahah', term: 'Murabahah', category: 'Bank Syariah',
+      def: 'Akad jual beli dalam perbankan syariah di mana bank membeli aset yang diinginkan nasabah lalu menjualnya kembali kepada nasabah dengan harga jual yang mencakup margin keuntungan yang disepakati.' },
+    // O
+    { id: 'obligasi', term: 'Obligasi', category: 'IKNB',
+      def: 'Surat utang jangka panjang yang diterbitkan oleh perusahaan atau pemerintah kepada investor. Penerbit berjanji untuk membayar bunga (kupon) secara berkala dan mengembalikan pokok utang pada tanggal jatuh tempo.' },
+    { id: 'ojk', term: 'OJK (Otoritas Jasa Keuangan)', category: 'OJK & LPS',
+      def: 'Lembaga negara independen yang berfungsi menyelenggarakan sistem pengaturan dan pengawasan terintegrasi terhadap keseluruhan kegiatan di sektor jasa keuangan Indonesia. Mengawasi perbankan, pasar modal, IKNB, dan fintech.' },
+    { id: 'osov', term: 'OSOV (One Share One Vote)', category: 'IKNB',
+      def: 'Prinsip demokrasi ekonomi koperasi: setiap anggota memiliki satu hak suara, tidak bergantung pada jumlah modal yang disetorkan. Berbeda dengan perusahaan biasa di mana hak suara sebanding dengan jumlah saham.' },
+    // P
+    { id: 'p2p-lending', term: 'P2P Lending (Peer-to-Peer Lending)', category: 'IKNB',
+      def: 'Model pinjaman digital (fintech) yang menghubungkan peminjam langsung dengan pemberi pinjaman (investor) tanpa melalui perantara bank konvensional. Diatur dan diawasi oleh OJK.' },
+    { id: 'pasar-modal', term: 'Pasar Modal', category: 'IKNB',
+      def: 'Tempat bertemunya emiten (perusahaan yang membutuhkan dana) dengan investor (yang memiliki dana) melalui perdagangan instrumen keuangan jangka panjang seperti saham dan obligasi. Di Indonesia diselenggarakan oleh Bursa Efek Indonesia (BEI/IDX).' },
+    { id: 'pegadaian', term: 'Pegadaian', category: 'IKNB',
+      def: 'Lembaga keuangan non-bank milik negara (BUMN/anak usaha BRI) yang menyediakan layanan pinjaman cepat dengan jaminan barang bergerak/tidak bergerak, serta layanan investasi emas.' },
+    { id: 'pensiun', term: 'Pensiun', category: 'IKNB',
+      def: 'Kondisi purna tugas seseorang dari pekerjaan aktifnya, umumnya saat mencapai usia tertentu. Dana pensiun bertugas menjamin ketersediaan dana bagi peserta yang telah memasuki masa pensiun.' },
+    { id: 'premi', term: 'Premi', category: 'IKNB',
+      def: 'Jumlah uang yang dibayarkan oleh tertanggung (pemegang polis) kepada perusahaan asuransi secara berkala sebagai biaya untuk mendapatkan perlindungan asuransi.' },
+    // R
+    { id: 'reksa-dana', term: 'Reksa Dana', category: 'IKNB',
+      def: 'Wadah yang menghimpun dana dari masyarakat (investor) untuk diinvestasikan dalam portofolio efek (saham, obligasi, pasar uang) oleh manajer investasi profesional.' },
+    { id: 'resolusi-bank', term: 'Resolusi Bank', category: 'LPS',
+      def: 'Tindakan penanganan yang dilakukan LPS terhadap bank yang dinyatakan gagal, dapat berupa penyelamatan (bail-out), pengalihan aset dan kewajiban, atau likuidasi.' },
+    { id: 'riba', term: 'Riba', category: 'Bank Syariah',
+      def: 'Tambahan (bunga) yang dikenakan atas pinjaman uang yang dilarang dalam hukum Islam. Perbankan syariah mengganti sistem bunga dengan bagi hasil, margin keuntungan, dan fee sebagai alternatif yang halal.' },
+    { id: 'rtgs', term: 'RTGS (Real Time Gross Settlement)', category: 'Bank Umum',
+      def: 'Sistem transfer dana antar bank secara real-time dan individual untuk nilai transaksi yang besar (umumnya di atas Rp 100 juta), diselenggarakan oleh Bank Indonesia.' },
+    // S
+    { id: 'safe-deposit-box', term: 'Safe Deposit Box', category: 'Bank Umum',
+      def: 'Layanan penyimpanan barang berharga (dokumen penting, perhiasan, dll.) di brankas khusus milik bank yang aman dari pencurian dan kebakaran, tersedia bagi nasabah dengan biaya sewa tahunan.' },
+    { id: 'saham', term: 'Saham', category: 'IKNB',
+      def: 'Surat bukti kepemilikan atas sebagian dari suatu perusahaan (emiten). Pemegang saham berhak atas dividen dan capital gain, namun juga menanggung risiko penurunan nilai saham.' },
+    { id: 'sbi', term: 'SBI (Sertifikat Bank Indonesia)', category: 'Bank Sentral',
+      def: 'Surat berharga jangka pendek yang diterbitkan oleh Bank Indonesia sebagai salah satu instrumen kebijakan moneter untuk menyerap kelebihan likuiditas di pasar.' },
+    { id: 'shu', term: 'SHU (Sisa Hasil Usaha)', category: 'IKNB',
+      def: 'Keuntungan bersih koperasi dalam satu tahun buku yang dibagikan kepada anggota secara proporsional sesuai dengan partisipasi dan kontribusi masing-masing anggota.' },
+    { id: 'sistem-pembayaran', term: 'Sistem Pembayaran', category: 'Bank Sentral',
+      def: 'Sistem yang mencakup berbagai mekanisme, prosedur, dan aturan yang memungkinkan perputaran uang dan penyelesaian transaksi antara berbagai pihak ekonomi. Bank Indonesia bertugas mengatur dan mengawasi sistem pembayaran nasional.' },
+    // T
+    { id: 'tabungan', term: 'Tabungan (Saving Deposit)', category: 'Bank Umum',
+      def: 'Simpanan di bank yang penyetoran dan penarikannya dapat dilakukan kapan saja selama jam operasional bank. Bunga tabungan umumnya lebih rendah dibanding deposito.' },
+    { id: 'tertanggung', term: 'Tertanggung', category: 'IKNB',
+      def: 'Pihak (nasabah) yang membayar premi kepada perusahaan asuransi dan berhak mendapat perlindungan atau ganti rugi atas risiko yang dijaminkan dalam polis asuransi.' },
+    // V
+    { id: 'nilai-tukar', term: 'Nilai Tukar (Kurs)', category: 'Bank Sentral',
+      def: 'Harga suatu mata uang relatif terhadap mata uang negara lain. Bank Indonesia berupaya menjaga kestabilan nilai tukar rupiah terhadap mata uang asing melalui kebijakan moneter dan intervensi pasar.' },
+  ];
+
+  /* Sort glossData alphabetically */
+  glossData.sort((a, b) => a.term.localeCompare(b.term, 'id'));
+
+  /* Category → color map */
+  const glossCatColor = {
+    'Bank Sentral': '#B45309',
+    'Bank Umum': '#1D4ED8',
+    'BPR': '#EA580C',
+    'Bank Syariah': '#0F766E',
+    'IKNB': '#C2410C',
+    'OJK & LPS': '#6D28D9',
+    'LPS': '#047857',
+  };
+
+  function initGloss() {
+    buildAlphaBar();
+    renderGloss(glossData);
+  }
+
+  function buildAlphaBar() {
+    const bar = document.getElementById('glossAlphaBar');
+    if (!bar || bar.children.length > 0) return;
+    const letters = [...new Set(glossData.map(e => e.term[0].toUpperCase()))].sort();
+    // All-button
+    const allBtn = document.createElement('button');
+    allBtn.className = 'gloss-alpha-btn active';
+    allBtn.textContent = 'Semua';
+    allBtn.style.width = 'auto';
+    allBtn.style.padding = '0 10px';
+    allBtn.onclick = () => { setAlpha(null, allBtn); };
+    bar.appendChild(allBtn);
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l => {
+      const btn = document.createElement('button');
+      btn.className = 'gloss-alpha-btn' + (letters.includes(l) ? '' : ' inactive');
+      btn.textContent = l;
+      btn.dataset.letter = l;
+      if (letters.includes(l)) {
+        btn.onclick = () => setAlpha(l, btn);
+      }
+      bar.appendChild(btn);
+    });
+  }
+
+  function setAlpha(letter, btn) {
+    document.querySelectorAll('.gloss-alpha-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('glossSearch').value = '';
+    if (!letter) {
+      renderGloss(glossData);
+    } else {
+      renderGloss(glossData.filter(e => e.term[0].toUpperCase() === letter));
+    }
+  }
+
+  function filterGloss() {
+    const q = document.getElementById('glossSearch').value.toLowerCase().trim();
+    document.querySelectorAll('.gloss-alpha-btn').forEach(b => b.classList.remove('active'));
+    const filtered = q
+      ? glossData.filter(e => e.term.toLowerCase().includes(q) || e.def.toLowerCase().includes(q))
+      : glossData;
+    renderGloss(filtered);
+  }
+
+  function renderGloss(data) {
+    const container = document.getElementById('glossEntries');
+    const noRes = document.getElementById('glossNoResults');
+    container.innerHTML = '';
+    if (data.length === 0) { noRes.style.display = 'block'; return; }
+    noRes.style.display = 'none';
+
+    // Group by first letter
+    const groups = {};
+    data.forEach(e => {
+      const l = e.term[0].toUpperCase();
+      if (!groups[l]) groups[l] = [];
+      groups[l].push(e);
+    });
+
+    Object.keys(groups).sort().forEach(l => {
+      const grp = document.createElement('div');
+      grp.className = 'gloss-letter-group';
+      grp.innerHTML = `<div class="gloss-letter-heading">${l}</div><div class="gloss-entries" id="grp-${l}"></div>`;
+      container.appendChild(grp);
+      const entriesEl = grp.querySelector('.gloss-entries');
+      groups[l].forEach(e => {
+        const catColor = glossCatColor[e.category] || 'var(--blue)';
+        const div = document.createElement('div');
+        div.className = 'gloss-entry';
+        div.id = 'gloss-' + e.id;
+        div.innerHTML = `
+          <div class="gloss-entry-term">
+            ${e.term}
+            <span class="gloss-entry-cat" style="background:${catColor}18;color:${catColor};">${e.category}</span>
+          </div>
+          <div class="gloss-entry-def">${e.def}</div>`;
+        entriesEl.appendChild(div);
+      });
+    });
+  }
+
+  /* Navigate to glossary and highlight a specific term */
+  function goToGloss(termId) {
+    showSection('glosarium');
+    setTimeout(() => {
+      const el = document.getElementById('gloss-' + termId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('highlight');
+        setTimeout(() => el.classList.remove('highlight'), 2000);
+      }
+    }, 200);
+  }
+
+  /* ============================================================
+     PETA KONSEP — SVG CONNECTOR LINES
+     Draws dashed lines between the root node and branch nodes.
+     Called whenever the peta-konsep section is opened.
+     ============================================================ */
+  function drawPetaLines() {
+    setTimeout(() => {
+      const wrap = document.getElementById('petaWrap');
+      const svg = document.getElementById('petaSvg');
+      if (!wrap || !svg) return;
+      svg.innerHTML = '';
+
+      const wRect = wrap.getBoundingClientRect();
+      svg.setAttribute('viewBox', `0 0 ${wrap.offsetWidth} ${wrap.offsetHeight}`);
+
+      const rootEl = document.getElementById('pw-root');
+      if (!rootEl) return;
+      const rRect = rootEl.getBoundingClientRect();
+      const rCx = rRect.left - wRect.left + rRect.width / 2;
+      const rCy = rRect.top  - wRect.top  + rRect.height / 2;
+
+      const branches = [
+        { id: 'pw-sentral', color: '#B45309' },
+        { id: 'pw-umum',    color: '#1D4ED8' },
+        { id: 'pw-bpr',     color: '#EA580C' },
+        { id: 'pw-iknb',    color: '#F97316' },
+        { id: 'pw-ojk',     color: '#8B5CF6' },
+        { id: 'pw-lps',     color: '#10B981' },
+        { id: 'pw-syariah', color: '#0F766E' },
+      ];
+
+      branches.forEach(b => {
+        const el = document.getElementById(b.id);
+        if (!el) return;
+        const branchEl = el.querySelector('.peta-branch');
+        if (!branchEl) return;
+        const bRect = branchEl.getBoundingClientRect();
+        const bCx = bRect.left - wRect.left + bRect.width / 2;
+        const bCy = bRect.top  - wRect.top  + bRect.height / 2;
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const mx = (rCx + bCx) / 2;
+        path.setAttribute('d', `M ${rCx} ${rCy} C ${mx} ${rCy}, ${mx} ${bCy}, ${bCx} ${bCy}`);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', b.color);
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('stroke-dasharray', '6 3');
+        path.setAttribute('opacity', '0.45');
+        svg.appendChild(path);
+      });
+    }, 120);
+  }
+
+  window.addEventListener('resize', () => {
+    const petaSec = document.getElementById('section-peta-konsep');
+    if (petaSec && petaSec.classList.contains('active')) drawPetaLines();
+  });
+</script>
+</body>
+</html>
